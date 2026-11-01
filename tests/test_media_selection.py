@@ -1,4 +1,4 @@
-"""Offline media-selection regression using an isolated Chromium. No account/API calls."""
+"""Kiểm thử hồi quy chọn media offline sử dụng Chromium cô lập. Không thực hiện cuộc gọi tài khoản/API."""
 import sys, importlib.util, json, tempfile, inspect, socket, shutil, os
 from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
@@ -10,7 +10,7 @@ source = next((a for a in sys.argv[1:] if not a.startswith('--')), str(ROOT/'eng
 spec=importlib.util.spec_from_file_location('candidate',source)
 module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
 from types import SimpleNamespace
-# snap Chromium needs a non-hidden writable profile under HOME, not /tmp.
+# Snap Chromium cần profile ghi được không ẩn dưới thư mục HOME, không dùng /tmp.
 with tempfile.TemporaryDirectory(prefix='muse-media-test-', dir=Path.home(), ignore_cleanup_errors=True) as tmp:
  with socket.socket() as sock:
   sock.bind(('127.0.0.1',0)); port=sock.getsockname()[1]
@@ -25,7 +25,7 @@ with tempfile.TemporaryDirectory(prefix='muse-media-test-', dir=Path.home(), ign
   upload=engine.attachments()
   page.js('''document.body.innerHTML=`<div data-testid="hatch-chat-attachment-presentation-image"><img class="outline-media-protection-border" src="data:image/png;base64,b3V0cHV0"></div><div class="group/msg"><button><img class="outline-media-protection-border" src="data:image/png;base64,aW5wdXQ="></button></div>`;''')
   atts=engine.attachments()
-  # A later unrelated bubble must not override the already selected media URL.
+  # Một bong bóng không liên quan xuất hiện sau không được ghi đè lên URL media đã chọn trước đó.
   page.js('''document.body.insertAdjacentHTML('beforeend','<div class="hatch-agent-bubble-bg"><img src="data:image/png;base64,d3Jvbmc="></div>');''')
   raw=page.js(module.MuseEngine._EXTRACT_JS % (json.dumps('data:image/png;base64,c2VsZWN0ZWQ='),json.dumps('image')),await_promise=True)
   extracted=json.loads(raw)
@@ -43,7 +43,7 @@ with tempfile.TemporaryDirectory(prefix='muse-media-test-', dir=Path.home(), ign
   video=engine._wait_attachment('',3,'video')
   engine.attachments=lambda:[{'src':'poster_only.png','tid':'image','hasVideo':False,'w':32,'h':32}]
   fallback_video_rejected=engine._wait_attachment('',1,'video') is None
-  # tid 已标 presentation-video，但尚无 <video>/vSrc：封面静帧不得当作命中
+  # tid đã gắn presentation-video nhưng chưa có thẻ <video>/vSrc: ảnh bìa tĩnh không được coi là khớp
   engine.attachments=lambda:[{'src':'cover.jpg','vSrc':'','tid':'hatch-chat-attachment-presentation-video','hasVideo':False,'w':1280,'h':720}]
   tid_video_cover_rejected=engine._wait_attachment('',1,'video') is None
   page.js('''document.body.innerHTML='<button aria-label="Download" onclick="window.wrongDownload=true">Download</button>';window.wrongDownload=false;''')

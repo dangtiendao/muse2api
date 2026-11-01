@@ -1,4 +1,4 @@
-"""Muse 生成引擎：用真实网页会话驱动 muse.ai 完成生图/生视频 (Muse Generation Engine Core).
+"""Engine sinh nội dung Muse: Điều khiển phiên web thực tế để sinh ảnh và video trên muse.ai (Muse Generation Engine Core).
 
 Module lõi chịu trách nhiệm tương tác và điều khiển trực tiếp phiên làm việc web muse.ai:
   - Khởi tạo và quản lý vòng đời tiến trình vô đầu Chromium qua giao thức Chrome DevTools Protocol (CDP).
@@ -44,8 +44,8 @@ MAX_REFERENCE_IMAGES = 4
 MAX_REFERENCE_IMAGE_BYTES = 10 * 1024 * 1024
 MAX_REFERENCE_TOTAL_BYTES = 24 * 1024 * 1024
 
-# 决定账号生死的核心 cookie（缺失或过期 = 会话失效）
-# 注：hatch_gw 为网关路由缓存，会话生死主要依赖 hatch_sess 与 hatch_vml，缺 gw 亦可正常续签与生成
+# Cookie cốt lõi quyết định trạng thái tài khoản (thiếu hoặc hết hạn = phiên vô hiệu)
+# Lưu ý: hatch_gw là bộ nhớ đệm định tuyến gateway; sự sống còn của phiên chủ yếu phụ thuộc vào hatch_sess và hatch_vml, thiếu gw vẫn có thể gia hạn và sinh nội dung bình thường
 ESSENTIAL_COOKIES = ("hatch_sess", "hatch_vml")
 
 
@@ -78,8 +78,8 @@ class _RefImageHTTPHandler(urllib.request.HTTPHandler, urllib.request.HTTPSHandl
         def create_connection(address, timeout, source_address):
             return socket.create_connection((self.address, address[1]), timeout, source_address)
 
-        # Keep the original host for Host, TLS SNI and certificate validation;
-        # only the socket destination is pinned to the checked address.
+        # Giữ host gốc cho tiêu đề Host, TLS SNI và kiểm thực chứng chỉ;
+        # chỉ ghim địa chỉ socket đích vào địa chỉ IP đã qua kiểm duyệt an toàn.
         connection._create_connection = create_connection
         return connection
 
@@ -200,7 +200,7 @@ class MuseEngine:
     def current_context_id(self, val: str | None):
         self._ensure_local().current_context_id = val
 
-    # ---------------- 浏览器生命周期 ----------------
+    # ---------------- Vòng đời trình duyệt (Browser Lifecycle) ----------------
     def _debug_url(self):
         return f"http://127.0.0.1:{self.cfg.cdp_port}/json/version"
 
@@ -230,7 +230,7 @@ class MuseEngine:
             f"--user-data-dir={self.cfg.profile_dir}",
             "about:blank",
         ]
-        # 尝试复用已有健康 CDP
+        # Thử tái sử dụng kết nối CDP lành mạnh hiện có
         if not self.proc:
             try:
                 v = http_json(self._debug_url(), timeout=1)
@@ -240,7 +240,7 @@ class MuseEngine:
             except Exception:
                 pass
 
-        # 清理残留锁
+        # Dọn dẹp khóa (lock) tàn dư
         for lock_name in ("SingletonLock", "SingletonSocket", "SingletonCookie"):
             lp = os.path.join(self.cfg.profile_dir, lock_name)
             if os.path.exists(lp) or os.path.islink(lp):
@@ -290,9 +290,9 @@ class MuseEngine:
                     self.proc.kill()
             self.proc = None
 
-    # ---------------- 页面 ----------------
+    # ---------------- Quản lý trang (Page Management) ----------------
     def _close_page(self):
-        """关闭当前线程专属的页面并销毁隔离的 BrowserContext，彻底释放内存与 Session。"""
+        """Đóng trang riêng của luồng hiện tại và hủy BrowserContext cô lập để giải phóng hoàn toàn bộ nhớ và Session."""
         p = self.page
         ctx_id = self.current_context_id
         if p:
@@ -312,8 +312,8 @@ class MuseEngine:
         self.current_acc_id = None
 
     def _open_page(self):
-        """为当前工作线程创建独立的页面。
-        若浏览器主连接存在，则创建独立的 Incognito BrowserContext，实现多账号 Cookies 与会话 100% 隔离。"""
+        """Tạo trang độc lập cho luồng làm việc hiện tại.
+        Nếu kết nối trình duyệt chính đang tồn tại, tạo một Incognito BrowserContext độc lập nhằm đảm bảo Cookies và phiên giữa nhiều tài khoản được cô lập 100%."""
         if self.browser:
             try:
                 res = self.browser.send("Target.createBrowserContext")
@@ -389,7 +389,7 @@ class MuseEngine:
             r = requests.get("https://muse.ai/api/session", headers=headers,
                              timeout=12, allow_redirects=False)
         except requests.RequestException as exc:
-            # 不回显请求内容：异常可能包含带凭据的代理 URL。
+            # Không hiển thị lại nội dung request: ngoại lệ có thể chứa URL proxy kèm thông tin xác thực.
             raise MuseGenerationError(
                 f"/api/session 网络请求失败 ({type(exc).__name__})；请检查服务器网络/代理后重试") from None
         if r.status_code == 401:
@@ -423,7 +423,7 @@ class MuseEngine:
                 }, timeout=8)
                 wake_requested = rw.status_code == 200
                 if wake_requested:
-                    # HTTP 200 acknowledges the request; only session state confirms the VM woke.
+                    # HTTP 200 chỉ xác nhận đã nhận yêu cầu; chỉ trạng thái session mới khẳng định chắc chắn VM đã thức giấc.
                     verify = requests.get("https://muse.ai/api/session", headers=headers,
                                           timeout=12, allow_redirects=False)
                     if verify.status_code == 200:
@@ -445,7 +445,7 @@ class MuseEngine:
         }
 
     def _apply_cookies(self, page: CDP, cookies: dict, expires: dict | None = None):
-        """注入 cookie。彻底清空旧账号 cookie 保证隔离，且绝不传入过去时间的 expires 防止 Chromium 丢弃 hatch_vml。"""
+        """Tiêm cookie. Xóa sạch hoàn toàn cookie tài khoản cũ để đảm bảo cô lập, và tuyệt đối không truyền expires trong quá khứ nhằm ngăn Chromium loại bỏ hatch_vml."""
         try:
             page.send("Network.clearBrowserCookies")
         except Exception:
@@ -474,11 +474,10 @@ class MuseEngine:
                     pass
 
     def read_cookies(self) -> dict[str, dict]:
-        """从当前页面读回 cookie（**包含 httpOnly**，这是网页 JS 做不到的）。
+        """Đọc lại cookie từ trang hiện tại (**bao gồm cả cờ httpOnly**, điều mà JavaScript thông thường trên web không thể làm được).
 
-        返回 {name: {"value":..., "expires": unix秒 或 -1}}。
-        用途：muse.ai 在访问时会续期部分 cookie，生成完读回来写进账号池，
-        账号就不容易过期。
+        Trả về {name: {"value": ..., "expires": unix timestamp hoặc -1}}.
+        Mục đích: muse.ai tự động gia hạn một phần cookie khi truy cập; việc đọc lại sau khi sinh nội dung và cập nhật vào hồ chứa giúp tài khoản khó bị hết hạn hơn.
         """
         if not self.page:
             return {}
@@ -500,7 +499,7 @@ class MuseEngine:
         return out
 
     def _wait_ws_ready(self, page: CDP, timeout: float = 15.0) -> bool:
-        """等待 muse.ai 页面完成 React hydration 且不再处于 Connecting... 状态。"""
+        """Chờ trang muse.ai hoàn tất quá trình React hydration và không còn ở trạng thái Connecting..."""
         deadline = time.time() + timeout
         while time.time() < deadline:
             try:
@@ -511,7 +510,7 @@ class MuseEngine:
                     if (h && h.getAttribute('data-hatch-shell-hydration-state') !== 'hydrated') return 'hydrating';
                     var b = document.body ? (document.body.innerText || '') : '';
                     if (b.indexOf('Connecting...') !== -1) return 'connecting';
-                    // Empty composers may not render Send until text has been entered.
+                    // Khung nhập liệu rỗng có thể không render nút Send cho đến khi văn bản được nhập vào.
                     if (document.querySelector('textarea').disabled) return 'input-disabled';
                     return 'ready';
                 })()""")
@@ -523,8 +522,8 @@ class MuseEngine:
         return False
 
     def reset_thread(self, for_chat: bool = False):
-        """关闭残留弹窗并确保处于干净会话且 WebSocket 已就绪。
-        对于纯文本对话（for_chat=True），若当前热页面无附件、无卡死且气泡数较少，直接复用现有热连接以实现 2s 级秒回。"""
+        """Đóng các popup tàn dư và đảm bảo phiên hội thoại sạch sẽ với WebSocket đã sẵn sàng.
+        Đối với hội thoại văn bản thuần túy (for_chat=True), nếu trang ấm hiện tại không có tệp đính kèm, không bị treo và số lượng bong bóng tin nhắn còn ít, hệ thống sẽ tái sử dụng trực tiếp kết nối ấm để phản hồi nhanh chóng trong ~2 giây."""
         if not self.page:
             return
         try:
@@ -592,7 +591,7 @@ class MuseEngine:
             except Exception:
                 pass
         self._close_page()
-        # 仅当距离上次 HTTP 续签超过 10 分钟时才在主链路调用 /api/session，避免每次切号重复阻塞
+        # Chỉ gọi /api/session trên luồng chính khi lần gia hạn HTTP trước cách hơn 10 phút, tránh lặp lại gây nghẽn mỗi lần chuyển tài khoản
         last_map = getattr(self, "_last_http_renew", None)
         if last_map is None:
             last_map = {}
@@ -626,23 +625,23 @@ class MuseEngine:
         self._close_page()
         if "connecting..." in body:
             raise MuseGenerationError("页面网关连接超时 (Connecting...)，正在自动切换账号")
-        # Distinguish an expired session from a page that never became ready.
+        # Phân biệt giữa phiên làm việc đã hết hạn và trang web không bao giờ sẵn sàng.
         if re.search(r"log in|sign in|create an account|登录|use another account", body):
             raise MuseAuthError("会话已被 muse.ai 登出（可能被其它登录挤掉或触发风控），"
                                 "请用浏览器扩展重新导入 cookie")
         raise MuseGenerationError("muse.ai 页面加载超时（未出现聊天输入框），请检查服务器网络后重试；未确认会话失效")
 
     def close_current_page(self):
-        """显式释放当前线程所持有的页面和隔离上下文。"""
+        """Giải phóng tường minh trang và ngữ cảnh cô lập do luồng hiện tại nắm giữ."""
         self._close_page()
 
     def refresh(self, cookies: dict, expires: dict | None = None):
         self._close_page()
         return self.ensure_page(cookies, expires)
 
-    # ---------------- 额度查询（Settings 面板） ----------------
-    # muse.ai 的额度在底部 Settings 菜单 → Settings 项 → 设置面板的
-    # General → Usage 区块里，形如：
+    # ---------------- Truy vấn hạn mức Quota (Bảng Settings) ----------------
+    # Hạn mức của muse.ai nằm trong menu Settings ở dưới cùng → mục Settings → bảng cài đặt
+    # mục General → Usage, có dạng như:
     #   Free plan
     #   Weekly limit resets on Sep 30
     #   1% used
@@ -678,7 +677,7 @@ class MuseEngine:
             && getComputedStyle(e).visibility !== 'hidden';
         const labels = ['Settings', '設定', '设置'];
         const exact = e => labels.includes((e.textContent || '').trim());
-        // Menu items include a shortcut suffix (for example 設定Ctrl+,).
+        // Các mục menu có chứa hậu tố phím tắt (ví dụ: Settings, 設定, 设置, v.v.).
         const b = [...document.querySelectorAll('[role=menuitem]')].find(e =>
             visible(e) && (exact(e) || [...e.querySelectorAll('span,div')].some(exact)))
             || [...document.querySelectorAll('[role=menu] button,[role=menu] span,[role=menu] div')]
@@ -707,13 +706,13 @@ class MuseEngine:
             time.sleep(0.15)
 
     def _dismiss_quota_ui(self):
-        # A failed lookup can leave a menu open; clean up menus and dialogs.
+        # Một lần tra cứu thất bại có thể để lại menu đang mở; dọn dẹp các menu và hộp thoại.
         for _ in range(2):
             for typ in ('keyDown', 'keyUp'):
                 self.page.send('Input.dispatchKeyEvent',
                                {'type': typ, 'key': 'Escape', 'code': 'Escape',
                                 'windowsVirtualKeyCode': 27, 'nativeVirtualKeyCode': 27})
-            time.sleep(0.1)  # Let the UI finish closing before the next interaction.
+            time.sleep(0.1)  # Chờ giao diện hoàn tất việc đóng lại trước tương tác tiếp theo.
 
     def quota(self, cookies: dict, expires: dict | None = None,
               account_id: str | None = None) -> dict:
@@ -732,9 +731,9 @@ class MuseEngine:
         Raises:
             MuseGenerationError: Nếu không tìm thấy nút Settings hoặc không đọc được bảng Usage sau timeout.
         """
-        # Muse's Settings menu can remain in a half-closed React state after a read.
-        # A disposable context is slower, but prevents consecutive reads from
-        # inheriting stale UI and keeps account cookies strictly isolated.
+        # Menu Settings của Muse có thể rơi vào trạng thái React đóng dở sau khi đọc.
+        # Ngữ cảnh dùng một lần chậm hơn nhưng ngăn các lần đọc liên tiếp
+        # kế thừa giao diện cũ và giữ cookie tài khoản được cô lập nghiêm ngặt.
         self._close_page()
         try:
             self.ensure_page(cookies, expires, account_id=account_id)
@@ -753,10 +752,10 @@ class MuseEngine:
 
     @staticmethod
     def _parse_quota(txt: str) -> dict:
-        """Parse English, traditional Chinese and simplified Chinese usage text."""
+        """Phân tích văn bản dung lượng sử dụng hỗ trợ tiếng Anh, tiếng Trung phồn thể và giản thể."""
         normalized = unicodedata.normalize('NFKC', txt or '')
         lines = [ln.strip() for ln in normalized.splitlines() if ln.strip()]
-        # Avoid unrelated account/profile text before the Usage section.
+        # Tránh các đoạn văn bản tài khoản/hồ sơ không liên quan nằm trước phần Usage.
         start = next((i + 1 for i, ln in enumerate(lines)
                       if ln.lower() in ('usage', '用量', '使用量')), 0)
         lines = lines[start:]
@@ -807,11 +806,11 @@ class MuseEngine:
                 break
         if re.search(r'Never expires|永不過期|永不过期', text, re.I):
             out['extra_expires'] = 'never'
-        # A plan label alone is not a successful quota read. Preserve old cache.
+        # Chỉ riêng nhãn gói cước không đại diện cho việc đọc quota thành công. Giữ nguyên cache cũ.
         out['found'] = 'weekly_used_pct' in out
         return out
 
-    # ---------------- 附件（生成结果） ----------------
+    # ---------------- Tệp đính kèm (Kết quả sinh nội dung) ----------------
     _ATT_JS = (
         "(function(){"
         "var list = []; var seen = new Set();"
@@ -854,10 +853,10 @@ class MuseEngine:
         except Exception:  # noqa: BLE001
             return []
 
-    # ---------------- 发送 ----------------
-    # 检查「文字真的进了输入框 + Send 按钮真的被渲染出来」。
-    # 两个条件缺一不可：Send 按钮只有 React state 里有文字才会渲染 ——
-    # 它在，就说明 React 真的收到了输入（不是 DOM value 被改了而已）。
+    # ---------------- Gửi tin nhắn (Send Message) ----------------
+    # Kiểm tra "văn bản đã thực sự vào ô nhập liệu + nút Send đã thực sự được render".
+    # Cả hai điều kiện đều bắt buộc: nút Send chỉ được render khi React state có chứa văn bản —
+    # nút xuất hiện chứng tỏ React đã thực sự nhận được dữ liệu nhập (chứ không đơn thuần là thay đổi DOM value).
     _SEND_STATE_JS = (
         "(function(){var ta=document.querySelector('textarea');"
         "var b=[...document.querySelectorAll('button,[role=button]')]"
@@ -911,8 +910,8 @@ class MuseEngine:
                             "button": "left", "clickCount": 1})
         time.sleep(0.1)
 
-        # 触发 React 18 原型 setter 以及 input/change 事件以同步发送按钮状态
-        # （对于 DeepSeek/Codex 等 100KB+ 超长上下文，直接走原型 setter 仅需 <1s，避免 Input.insertText 逐字注入卡死）
+        # Kích hoạt setter nguyên mẫu của React 18 cùng các sự kiện input/change để đồng bộ trạng thái nút gửi
+        # (Đối với ngữ cảnh siêu dài 100KB+ như DeepSeek/Codex, việc đi qua setter nguyên mẫu chỉ mất <1s, tránh bị treo do chèn từng ký tự bằng Input.insertText)
         _SETTER_JS = (
             "(function(t){var ta=document.querySelector('textarea');"
             "if(!ta) return 0;"
@@ -927,7 +926,7 @@ class MuseEngine:
             self.page.send("Input.insertText", {"text": prompt})
             self.page.js(_SETTER_JS % json.dumps(prompt))
 
-        # 等待发送按钮就绪并点击
+        # Chờ nút gửi sẵn sàng và nhấp chuột
         clicked = "no-button"
         t_deadline = time.time() + 3.0
         while time.time() < t_deadline:
@@ -946,7 +945,7 @@ class MuseEngine:
             time.sleep(0.08)
 
         if clicked != "clicked":
-            # 兜底：Ctrl+Enter 或普通 Enter
+            # Phương án dự phòng: Ctrl+Enter hoặc phím Enter thông thường
             for combo in ({"modifiers": 1}, {}):
                 for t in ("keyDown", "char", "keyUp"):
                     params = {"type": t, "key": "Enter", "code": "Enter",
@@ -966,14 +965,14 @@ class MuseEngine:
         time.sleep(0.3)
         return clicked
 
-    # ---------------- 等待生成 ----------------
+    # ---------------- Chờ sinh nội dung (Wait for Generation) ----------------
     def _last_attachment(self) -> dict | None:
         atts = self.attachments()
         return atts[-1] if atts else None
 
     def _scroll_bottom(self):
-        """滚到聊天底部。muse.ai 的聊天滚动容器是内层 div（不是 document），
-        虚拟列表按滚动位置渲染节点 —— 不滚到底，新消息根本不在 DOM 里。"""
+        """Cuộn xuống đáy cuộc trò chuyện. Khung cuộn trò chuyện của muse.ai là div bên trong (không phải document),
+        danh sách ảo (virtual list) render node theo vị trí cuộn — nếu không cuộn xuống đáy, tin nhắn mới sẽ hoàn toàn không có trong DOM."""
         try:
             self.page.js(
                 "(function(){"
@@ -1032,7 +1031,7 @@ class MuseEngine:
             time.sleep(0.6)
             self._scroll_bottom()
             atts = self.attachments()
-            # 严格按期望类型挑选附件，绝不接受跨模态兜底（如将视频请求降级为图片封面）
+            # Chọn tệp đính kèm nghiêm ngặt theo đúng loại kỳ vọng, tuyệt đối không chấp nhận dự phòng sai modal (như hạ cấp yêu cầu video thành ảnh bìa)
             matching_atts = []
             for a in atts:
                 tid = (a.get("tid") or "").lower()
@@ -1040,10 +1039,10 @@ class MuseEngine:
                 src = a.get("src") or ""
                 v_src = a.get("vSrc") or ""
                 if expect == "video":
-                    # tid 含 "video" 不足以命中：muse 会先把 data-testid 标成
-                    # ...-presentation-video，此时 <video> 可能尚未挂上，_ATT_JS 的
-                    # primary = v || img 会退回封面 img，src/w/h 全是静帧。
-                    # 只认真正的视频源（vSrc / hasVideo / 视频扩展名）。
+                    # tid chứa "video" là chưa đủ để xác nhận: muse sẽ đánh dấu data-testid thành
+                    # ...-presentation-video từ sớm, khi đó thẻ <video> có thể chưa được gắn vào, _ATT_JS với
+                    # primary = v || img sẽ quay về lấy img bìa, khiến src/w/h toàn là ảnh tĩnh.
+                    # Chỉ công nhận nguồn video thực sự (vSrc / hasVideo / phần mở rộng video).
                     is_match = (
                         has_video
                         or bool(v_src)
@@ -1060,7 +1059,7 @@ class MuseEngine:
                 v_src = att.get("vSrc") or ""
                 w = att.get("w", 0) or 0
                 h = att.get("h", 0) or 0
-                # 视频任务禁止用封面 src 冒充成品；无 vSrc 时仅接受显式视频后缀的 src
+                # Nhiệm vụ video nghiêm cấm lấy src ảnh bìa giả mạo sản phẩm hoàn thiện; khi không có vSrc chỉ chấp nhận src có đuôi video rõ ràng
                 if expect == "video":
                     check_src = v_src if v_src else (
                         src if src.endswith((".mp4", ".webm", ".mov")) else ""
@@ -1120,7 +1119,7 @@ class MuseEngine:
 
             if re.search(r"额度不足|积分不足|out of credits|达到上限|token limit", tail, re.I):
                 raise MuseGenerationError("账号额度不足")
-            # A Stop button is also shown for messages never acknowledged by the gateway.
+            # Nút Stop cũng có thể hiển thị cho các tin nhắn chưa từng được gateway xác nhận.
             if elapsed > 30.0 and cur_cnt == base_agent_cnt and re.search(
                     r"Still sending|Delivery not confirmed|正在发送|未确认送达", tail, re.I):
                 raise MuseGenerationError(
@@ -1140,7 +1139,7 @@ class MuseEngine:
                 refusal_last, refusal_stable = "", 0
 
             if cur_cnt > base_agent_cnt and cur_txt and not has_stop and len(atts) <= base_att_cnt:
-                # Media-status text can precede a real attachment; do not fail on it.
+                # Văn bản báo trạng thái media có thể xuất hiện trước tệp đính kèm thực tế; không coi đây là lỗi.
                 is_media_report = bool(re.search(
                     r"\.(?:webp|png|jpe?g|mp4|webm)|imagine_media|deliverable|"
                     r"generated\s+.*image|verified\s+generated|artifact", cur_txt, re.I))
@@ -1158,9 +1157,9 @@ class MuseEngine:
             else:
                 txt_stable = 0
 
-            # Muse accepted the click but never created a thread. Requiring a completed
-            # Stop-button lifecycle, an idle page, no messages/attachments and /thread/new
-            # avoids treating ordinary long video rendering as failure.
+            # Muse đã nhận cú nhấp chuột nhưng không tạo thread. Việc yêu cầu hoàn tất
+            # vòng đời nút Stop, trang nhàn rỗi, không có tin nhắn/tệp đính kèm và đang ở /thread/new
+            # giúp tránh nhầm lẫn quá trình render video dài thông thường là lỗi thất bại.
             if (expect == "video" and seen_stop and not has_stop
                     and path.rstrip("/").endswith("/thread/new")
                     and cur_cnt <= base_agent_cnt and len(atts) <= base_att_cnt
@@ -1194,7 +1193,7 @@ class MuseEngine:
                 return clean
         return ""
 
-    # ---------------- 取字节 ----------------
+    # ---------------- Lấy dữ liệu nhị phân (Fetch Bytes) ----------------
     _EXTRACT_JS = r"""
     (async function(src, expect){
       try{
@@ -1216,7 +1215,7 @@ class MuseEngine:
     })(%s, %s)
     """
 
-    # ---------------- 文本 / 代码对话 ----------------
+    # ---------------- Hội thoại Văn bản / Code (Text & Code Chat) ----------------
     _AGENT_TEXT_JS = (
         "(function(){"
         "var bs=[].slice.call(document.querySelectorAll("
@@ -1261,7 +1260,7 @@ class MuseEngine:
     )
 
     def _agent_text(self) -> str:
-        """最后一个助手气泡的文本（取不到就返回空串）。"""
+        """Lấy văn bản của bong bóng trợ lý cuối cùng (nếu không lấy được thì trả về chuỗi rỗng)."""
         try:
             return (self.page.js(self._AGENT_TEXT_JS) or "").strip()
         except Exception:  # noqa: BLE001
@@ -1323,7 +1322,7 @@ class MuseEngine:
         sent, last, stable = "", None, 0
         got_first = False
 
-        # 1. 等待助手生成并开始吐字（高频 60ms 采样，捕获到首批增量文字瞬间 yield 出去）
+        # 1. Chờ trợ lý sinh nội dung và bắt đầu xuất chữ (lấy mẫu tần suất cao 60ms, yield ngay tức thì khi bắt được những ký tự gia tăng đầu tiên)
         while time.time() < first_token_deadline:
             if stop_event is not None and stop_event.is_set():
                 return
@@ -1350,7 +1349,7 @@ class MuseEngine:
         if not got_first:
             raise MuseGenerationError("等待助手首字响应超时")
 
-        # 2. 持续捕获增量文本
+        # 2. Liên tục thu nhận văn bản gia tăng (incremental text)
         while time.time() < deadline:
             if stop_event is not None and stop_event.is_set():
                 return
@@ -1367,10 +1366,10 @@ class MuseEngine:
                 last, stable = cur, 0
             else:
                 stable += 1
-                # Stop 按钮消失说明前端生成彻底结束，连续 3 次（约 0.18s）无新文本即正常退出
+                # Nút Stop biến mất cho thấy frontend đã hoàn tất sinh nội dung, thoát bình thường sau 3 lần liên tiếp (~0.18s) không có văn bản mới
                 if not has_stop and stable >= 3:
                     return
-                # Stop 按钮仍在时绝不过早截断（模型思考、代码块或网络抖动），允许等待至 stable >= 80（约 5s）防卡死
+                # Khi nút Stop vẫn còn thì tuyệt đối không cắt sớm (mô hình đang suy nghĩ, khối mã hoặc mạng chập chờn), cho phép chờ đến stable >= 80 (~5s) để chống treo
                 if has_stop and stable >= 80:
                     return
 
@@ -1423,7 +1422,7 @@ class MuseEngine:
             time.sleep(2)
         raise MuseGenerationError(f"未能取回生成结果: {last}")
 
-    # ---------------- 下载兜底 ----------------
+    # ---------------- Cơ chế tải về dự phòng (Download Fallback) ----------------
     def _download_fallback(self, src: str, timeout: int = 180) -> str | None:
         """Cơ chế dự phòng: Kích hoạt nút Tải xuống (Download) của phần tử trên giao diện và đón file trong thư mục downloads.
         
@@ -1435,8 +1434,8 @@ class MuseEngine:
             str | None: Đường dẫn file cục bộ đã tải về thành công hoặc None nếu thất bại.
         """
         before = set(os.listdir(self.cfg.download_dir))
-        # ponytail: fail closed when the selected result has no local download;
-        # never click an unrelated/global button that can return the upload.
+        # ponytail: đóng luồng an toàn khi kết quả được chọn không có nút tải cục bộ;
+        # tuyệt đối không nhấp vào nút không liên quan/toàn cục có thể làm tải lại file upload.
         clicked = self.page.js("""(function(src){
             var media=[...document.querySelectorAll('img,video')]
                 .find(m=>(m.currentSrc||m.src||'')===src);
@@ -1518,7 +1517,7 @@ class MuseEngine:
                 raise MuseGenerationError(
                     f"下载远程参考图失败: {type(exc).__name__}") from exc
 
-        # Raw Base64 contains no server-side path and remains safe in restricted mode.
+        # Chuỗi Base64 thô không chứa đường dẫn phía máy chủ và vẫn an toàn trong chế độ hạn chế.
         try:
             return checked(base64.b64decode(img, validate=True), "image/png")
         except (binascii.Error, ValueError):
@@ -1543,7 +1542,7 @@ class MuseEngine:
         raise MuseGenerationError("参考图必须是 URL、Data URL、本地图片或有效 Base64")
 
     def _clear_attachments(self):
-        """清除聊天输入框里遗留的附件缩略图（兼容中/英文 UI）。"""
+        """Xóa ảnh thu nhỏ của tệp đính kèm còn sót lại trong ô nhập trò chuyện (tương thích giao diện Trung/Anh)."""
         try:
             self.page.js(
                 "(function(){"
@@ -1593,7 +1592,7 @@ class MuseEngine:
         _INJECT_JS = """
         (async function(images) {
             try {
-                // 现网 composer 里可能有多个 file input；优先取位于 composer 内的那个
+                // Trong composer thực tế có thể có nhiều input file; ưu tiên lấy input nằm bên trong composer
                 var inputs = Array.from(document.querySelectorAll('input[type="file"]'));
                 if (!inputs.length) return JSON.stringify({ok: false, err: 'no-file-input'});
                 var ov = document.querySelector('[data-testid="hatch-composer-placeholder-overlay"]');
@@ -1603,12 +1602,12 @@ class MuseEngine:
                     input = inputs.find(function(x){ return composer.contains(x); }) || null;
                 }
                 if (!input) {
-                    // 退而求其次：取不在对话气泡里的那个 input
+                    // Phương án dự phòng tiếp theo: lấy input không nằm trong bong bóng trò chuyện
                     input = inputs.find(function(x){
                         return !x.closest('[class*=chat-user-bubble], [class*="group/msg"]');
                     }) || inputs[0];
                 }
-                // 有些版本 accept 为空，补上 image/* 让页面接受本次 File
+                // Một số phiên bản có accept để trống, bổ sung image/* để trang web chấp nhận File lần này
                 if (!input.getAttribute('accept')) input.setAttribute('accept', 'image/*');
                 for (var image of images) {
                     var byteChars = atob(image.b64);
@@ -1645,9 +1644,9 @@ class MuseEngine:
         except Exception as e:
             raise MuseGenerationError("附加参考图失败，已停止生成") from e
 
-        # 等待输入框附件确认；历史图片不能证明本次上传成功。
-        # 现网 UI 已切中文：确认按钮 aria-label = "附加文件"/"移除附件"；
-        # 同时兼容英文（Remove attachment / Attach file），并以 composer 内缩略图兜底。
+        # Chờ xác nhận tệp đính kèm trong ô nhập liệu; hình ảnh lịch sử không chứng minh được lần tải lên này thành công.
+        # Giao diện hiện tại hỗ trợ nút xác nhận aria-label = "附加文件"/"移除附件";
+        # đồng thời tương thích tiếng Anh (Remove attachment / Attach file), và dự phòng bằng ảnh thu nhỏ bên trong composer.
         deadline = time.time() + 15.0
         attached_count = 0
         while time.time() < deadline:
@@ -1679,7 +1678,7 @@ class MuseEngine:
             image_data (str): Dữ liệu ảnh tham chiếu đơn lẻ.
         """
         self._attach_images([image_data])
-    # ---------------- 主流程 ----------------
+    # ---------------- Luồng chính (Main Generation Workflow) ----------------
     def generate(self, cookies: dict, prompt: str, expect: str = "image",
                  timeout: int = 240, expires: dict | None = None, account_id: str | None = None,
                  on_progress=None, reference_image: str | None = None,

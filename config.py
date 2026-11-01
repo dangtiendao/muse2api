@@ -1,4 +1,4 @@
-"""muse2api 配置与环境变量管理模块 (Configuration & Environment Management).
+"""Module quản lý cấu hình và biến môi trường của muse2api (Configuration & Environment Management).
 
 Module này chịu trách nhiệm:
   - Tự động nạp cấu hình từ file `.env` tại thư mục gốc dự án.

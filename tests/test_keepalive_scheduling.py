@@ -1,4 +1,4 @@
-"""Regression checks for maintenance activity and keepalive cadence."""
+"""Kiểm thử hồi quy cho hoạt động bảo trì và nhịp độ giữ phiên (keepalive)."""
 import asyncio
 import os
 import sys

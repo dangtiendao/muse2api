@@ -1,4 +1,4 @@
-"""Static regression: hatch_gw must never block cookie import."""
+"""Hồi quy tĩnh: hatch_gw tuyệt đối không được chặn quá trình import cookie."""
 import ast
 import json
 from pathlib import Path

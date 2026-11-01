@@ -1,4 +1,4 @@
-"""Offline regressions for MUSE page readiness and video delivery waits."""
+"""Kiểm thử hồi quy offline cho độ sẵn sàng của trang MUSE và thời gian chờ giao video."""
 import ast
 import importlib.util
 import json
@@ -90,12 +90,12 @@ except engine_module.MuseModelRefusalError as exc:
 else:
     raise AssertionError("explicit region refusal was not returned promptly")
 
-# Generic page chrome containing region/video words is not sufficient evidence.
+# Khung giao diện chung chứa các từ region/video không phải là bằng chứng đầy đủ.
 assert engine_module.MuseEngine._media_refusal_text(
     "Settings\\nRegion: US\\nVideo", "video") == ""
 
-# A completed submission that remains idle on /thread/new stops before 600s,
-# but only after the Stop lifecycle and a long quiet period.
+# Một yêu cầu đã hoàn tất nhưng vẫn ở trạng thái nhàn rỗi trên /thread/new sẽ dừng trước 600s,
+# nhưng chỉ sau vòng đời nút Stop và một khoảng thời gian yên tĩnh kéo dài.
 try:
     wait_case([
         {"stop": True, "tail": "", "path": "/thread/new"},
@@ -106,6 +106,6 @@ except engine_module.MuseGenerationError as exc:
 else:
     raise AssertionError("idle /thread/new task waited for full timeout")
 
-# No observed submission lifecycle must not trigger the early no-thread error.
+# Việc không quan sát thấy vòng đời gửi yêu cầu không được kích hoạt lỗi no-thread sớm.
 assert wait_case([{"stop": False, "tail": "", "path": "/thread/new"}], timeout=20) is None
 print("PASS: explicit refusal propagated; idle no-thread stopped; normal wait preserved")

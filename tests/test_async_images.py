@@ -1,4 +1,4 @@
-"""Run: python tests/test_async_images.py [path/to/app.py]; uses no live account."""
+"""Chạy: python tests/test_async_images.py [path/to/app.py]; không sử dụng tài khoản thật."""
 import asyncio
 import base64
 import importlib.util
@@ -21,7 +21,7 @@ class Response:
 
 
 class Client:
-    """Minimal ASGI test client using the standard library, no httpx dependency."""
+    """Client kiểm thử ASGI tối giản dùng thư viện chuẩn, không phụ thuộc httpx."""
     def __init__(self, app, headers):
         self.app, self.headers = app, headers
 
@@ -127,7 +127,7 @@ async def check(source, home):
     module._run_generation = generation
     headers = {"Authorization": "Bearer test-only"}
     async with Client(module.app, headers) as client:
-        # Old endpoint blocks until result; the new endpoint must acknowledge before release.
+        # Endpoint cũ chặn cho đến khi có kết quả; endpoint mới phải xác nhận trước khi giải phóng.
         timer = threading.Timer(0.25, release.set)
         timer.start()
         t0 = time.monotonic()

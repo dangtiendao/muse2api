@@ -1,4 +1,4 @@
-"""Offline/API regressions for multi-reference validation and memory limits."""
+"""Kiểm thử hồi quy Offline/API cho việc xác thực nhiều ảnh tham chiếu và giới hạn bộ nhớ."""
 import asyncio
 import base64
 import importlib.util
@@ -137,7 +137,7 @@ async def expect_endpoint_400(request, text):
         raise AssertionError("invalid /v1/images/edits request was accepted")
 
 
-# Exercise the real endpoint path, not only its helper.
+# Thực thi đường dẫn endpoint thực tế, không chỉ riêng hàm trợ giúp.
 for body, text in [
     ({"prompt": "x", "async": True, "images": [None]}, "images[0]"),
     ({"prompt": "x", "async": True, "images": ["new"], "image": "old"}, "不能"),

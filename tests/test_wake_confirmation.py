@@ -1,4 +1,4 @@
-"""Offline regression: wake acknowledgement is not proof that a VM is running."""
+"""Kiểm thử hồi quy offline: phản hồi xác nhận wake không phải là bằng chứng cho thấy VM đang chạy."""
 import importlib.util
 import sys
 from pathlib import Path

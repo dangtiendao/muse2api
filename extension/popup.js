@@ -16,8 +16,8 @@ const STORE = 'muse2api_ext_cfg';
 
 const ESSENTIAL = ['hatch_sess', 'hatch_vml'];
 
-/* ================= 界面语言 / UI language =================
- * 中文是源语言；英文通过下面的词典替换。
+/* ================= Ngôn ngữ giao diện / UI language =================
+ * Tiếng Trung là ngôn ngữ nguồn; tiếng Anh được thay thế thông qua từ điển bên dưới.
  * Hỗ trợ đa ngôn ngữ (Tiếng Trung và Tiếng Anh). */
 const LANG_STORE = 'muse2api_lang';
 const LANG = (() => {
@@ -34,9 +34,9 @@ function setLang(v) {
   location.reload();
 }
 
-/* 整句：中文 → 英文 / Bảng tra dịch thuật câu hoàn chỉnh */
+/* Cả câu: Tiếng Trung → Tiếng Anh (Bảng tra dịch thuật câu hoàn chỉnh) */
 const I18N_EN = {
-  // popup.html 静态文案
+  // Văn bản tĩnh trong popup.html
   'Muse2API Cookie 导入': 'Muse2API Cookie Import',
   '把当前浏览器里 muse.ai 的登录态，一键同步到你的 muse2api 服务。':
     'Sync the muse.ai login session from this browser to your muse2api service in one click.',
@@ -44,7 +44,7 @@ const I18N_EN = {
   '账号标签（可留空）': 'Account label (optional)',
   '例如 muse-main': 'e.g. muse-main',
   '读取并导入': 'Read and import',
-  // popup.js 日志 / 状态
+  // Nhật ký / Trạng thái trong popup.js
   '请先填服务地址': 'Please enter the service URL first',
   '请先填 API Key': 'Please enter the API Key first',
   '正在读取 muse.ai 的 Cookie…': 'Reading muse.ai cookies…',
@@ -63,13 +63,13 @@ const I18N_EN = {
   '\n注意：{warning}': '\nNote: {warning}',
   '出错了：{msg}\n\n常见原因：\n· 服务地址填错或服务没启动\n· 这个地址不是 https（或证书不被信任）\n· 浏览器拦截了跨域请求':
     'Something went wrong: {msg}\n\nCommon causes:\n· The service URL is wrong or the service is not running\n· The URL is not https (or the certificate is not trusted)\n· The browser blocked the cross-origin request',
-  // 服务端（/admin/accounts）可能返回的整句
+  // Các câu phản hồi có thể trả về từ máy chủ (/admin/accounts)
   '未解析到任何 cookie，请检查格式': 'No cookies could be parsed; please check the format',
   '缺少 Authorization: Bearer <key>': 'Missing Authorization: Bearer <key>',
   'API key 无效': 'Invalid API key',
 };
 
-/* 含富文本的块：data-i18n="key" → 英文 innerHTML */
+/* Khối chứa rich text: data-i18n="key" → innerHTML tiếng Anh */
 const I18N_EN_HTML = {
   steps: '<b>Before you start, check two things:</b><br>\n'
     + '    1. You are logged in to <a href="https://muse.ai/" target="_blank"\n'
@@ -80,7 +80,7 @@ const I18N_EN_HTML = {
     + '    Nothing is collected or uploaded to any third-party server.',
 };
 
-/* 服务端返回的含变量文案：[正则, 替换串] */
+/* Văn bản chứa biến trả về từ máy chủ: [regex, chuỗi thay thế] */
 const I18N_EN_PATTERNS = [
   [/^缺少核心 cookie：(.*)，该账号可能无法生成$/s, 'Missing core cookies: $1; this account may not be able to generate'],
 ];
@@ -155,7 +155,7 @@ async function loadCfg() {
   if (c.base) $('base').value = c.base;
   if (c.key) $('key').value = c.key;
   if (c.label) $('label').value = c.label;
-  // 没有配置过就尝试从当前标签页猜一个（用户在管理页上时）
+  // Nếu chưa từng cấu hình thì thử suy đoán từ tab hiện tại (khi người dùng đang mở trang quản trị)
   // Nếu chưa cấu hình, thử đoán URL từ tab đang mở nếu người dùng đang ở trang quản trị Admin
   if (!c.base) {
     try {

@@ -1,4 +1,4 @@
-"""极简 Chrome DevTools Protocol 客户端 (Minimalist Chrome DevTools Protocol Client).
+"""Client Chrome DevTools Protocol tối giản (Minimalist Chrome DevTools Protocol Client).
 
 Module này cung cấp client giao tiếp trực tiếp với Chromium/Chrome thông qua giao thức CDP:
   - Kết nối WebSocket hai chiều tới trình duyệt hoặc tab cụ thể.

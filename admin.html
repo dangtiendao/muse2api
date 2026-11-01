@@ -20,7 +20,7 @@
   a{color:var(--accent);text-decoration:none}
   code,kbd,pre{font-family:ui-monospace,SFMono-Regular,Consolas,"Cascadia Mono",monospace}
 
-  /* ---------- 顶栏 ---------- */
+  /* ---------- Thanh điều hướng trên cùng (Header) ---------- */
   header{
     position:sticky;top:0;z-index:20;backdrop-filter:blur(14px);
     background:rgba(10,14,23,.82);border-bottom:1px solid var(--line);
@@ -43,7 +43,7 @@
   .keybox input{background:transparent;border:0;color:var(--text);outline:none;width:210px;font-size:12.5px;font-family:ui-monospace,monospace}
   .keybox button{padding:5px 10px;font-size:12px}
 
-  /* ---------- 布局 ---------- */
+  /* ---------- Bố cục (Layout) ---------- */
   main{max-width:1280px;margin:0 auto;padding:22px}
   nav.tabs{display:flex;gap:6px;margin-bottom:20px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:0}
   nav.tabs button{
@@ -55,7 +55,7 @@
   .tab{display:none}.tab.active{display:block;animation:fade .18s ease}
   @keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
 
-  /* ---------- 卡片 ---------- */
+  /* ---------- Thẻ chứa (Cards) ---------- */
   .card{background:linear-gradient(180deg,var(--panel) 0%,var(--panel2) 100%);border:1px solid var(--line);border-radius:var(--radius);padding:18px;margin-bottom:16px}
   .card>h3{margin:0 0 4px;font-size:14.5px;display:flex;align-items:center;gap:8px}
   .card>h3 .tag{font-size:11px;font-weight:500;color:var(--muted);background:var(--bg2);border:1px solid var(--line);border-radius:6px;padding:1px 7px}
@@ -65,7 +65,7 @@
   .copyline{display:flex;gap:7px;align-items:center}
   .copyline input{flex:1;font-family:ui-monospace,monospace;font-size:12.5px}
 
-  /* ---------- 分步引导 ---------- */
+  /* ---------- Hướng dẫn từng bước (Step-by-step Guide) ---------- */
   .stepbox{display:flex;gap:13px;align-items:flex-start;padding:15px 0;border-bottom:1px solid rgba(32,41,61,.6)}
   .stepbox:last-child{border-bottom:0;padding-bottom:0}
   .stepbox:first-of-type{padding-top:4px}
@@ -86,14 +86,14 @@
   kbd{display:inline-block;background:var(--bg2);border:1px solid var(--line);border-bottom-width:2px;
     border-radius:5px;padding:1px 7px;font-size:11.5px;color:var(--text);line-height:1.6;white-space:nowrap}
 
-  /* ---------- 统计 ---------- */
+  /* ---------- Thống kê (Statistics) ---------- */
   .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:16px}
   .stat{background:linear-gradient(180deg,var(--panel) 0%,var(--panel2) 100%);border:1px solid var(--line);border-radius:var(--radius);padding:15px 17px}
   .stat .k{color:var(--muted);font-size:12px;margin-bottom:4px}
   .stat .v{font-size:25px;font-weight:650;letter-spacing:.4px}
   .stat.g .v{color:var(--ok)}.stat.r .v{color:var(--bad)}.stat.y .v{color:var(--warn)}.stat.b .v{color:var(--accent)}
 
-  /* ---------- 表单 ---------- */
+  /* ---------- Biểu mẫu (Forms) ---------- */
   label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:5px}
   input[type=text],input[type=number],textarea,select{
     width:100%;background:var(--bg2);color:var(--text);border:1px solid var(--line);border-radius:9px;
@@ -115,7 +115,7 @@
   button.mini{padding:4px 10px;font-size:12px;border-radius:7px}
   button.primary-lg{padding:11px 24px;font-size:13.5px}
 
-  /* ---------- 表格 ---------- */
+  /* ---------- Bảng dữ liệu (Tables) ---------- */
   .tblwrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--radius)}
   table{width:100%;border-collapse:collapse;font-size:13px}
   th{background:var(--bg2);color:var(--muted);font-weight:500;font-size:12px;text-align:left;padding:10px 13px;white-space:nowrap;border-bottom:1px solid var(--line)}
@@ -133,7 +133,7 @@
   .acts{display:flex;gap:6px;flex-wrap:wrap}
   .empty{text-align:center;color:var(--muted);padding:34px 10px;font-size:13px}
 
-  /* ---------- 媒体库 ---------- */
+  /* ---------- Thư viện Media (Media Gallery) ---------- */
   .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px}
   .tile{position:relative;background:var(--bg2);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;transition:.18s}
   .tile:hover{border-color:#37415a;transform:translateY(-2px)}
@@ -147,19 +147,19 @@
   .tile .meta .nm{font-family:ui-monospace,monospace;color:var(--text);font-size:11px;word-break:break-all}
   .tile .meta .ac{display:flex;gap:6px;margin-top:7px;align-items:center}
 
-  /* ---------- 结果预览 ---------- */
+  /* ---------- Xem trước kết quả (Preview) ---------- */
   .result{margin-top:14px;padding:14px;background:var(--bg2);border:1px dashed var(--line);border-radius:var(--radius);display:none}
   .result.show{display:block}
   .result img,.result video{max-width:100%;max-height:420px;border-radius:9px;display:block;margin-top:10px;background:#060911}
   pre.out{background:#060911;border:1px solid var(--line);border-radius:9px;padding:12px;overflow:auto;max-height:280px;font-size:12px;color:#9fe8c0;margin:10px 0 0;white-space:pre-wrap;word-break:break-all}
 
-  /* ---------- 提示条 ---------- */
+  /* ---------- Thanh thông báo (Alerts / Notices) ---------- */
   #toasts{position:fixed;right:20px;bottom:20px;z-index:99;display:flex;flex-direction:column;gap:9px;align-items:flex-end}
   .toast{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:10px;padding:11px 15px;font-size:13px;max-width:380px;box-shadow:0 12px 34px rgba(0,0,0,.55);animation:slide .2s ease}
   .toast.ok{border-left-color:var(--ok)}.toast.bad{border-left-color:var(--bad)}.toast.warn{border-left-color:var(--warn)}
   @keyframes slide{from{opacity:0;transform:translateX(18px)}to{opacity:1;transform:none}}
 
-  /* ---------- 文档 ---------- */
+  /* ---------- Tài liệu tích hợp (Docs) ---------- */
   .doc h4{margin:20px 0 8px;font-size:13.5px;color:var(--text)}
   .doc h4:first-child{margin-top:0}
   pre.code{background:#060911;border:1px solid var(--line);border-radius:9px;padding:14px;overflow:auto;font-size:12.5px;line-height:1.65;color:#cfe3ff;position:relative}
@@ -172,7 +172,7 @@
   .live .led{width:6px;height:6px;border-radius:50%;background:var(--ok);animation:bl 1.6s infinite}
   @keyframes bl{0%,100%{opacity:1}50%{opacity:.25}}
 
-  /* ---------- 未登录提示条 ---------- */
+  /* ---------- Thanh nhắc nhở chưa đăng nhập ---------- */
   .banner{display:none;align-items:flex-start;gap:13px;background:linear-gradient(90deg,rgba(251,191,36,.14),rgba(251,191,36,.03));
     border:1px solid rgba(251,191,36,.42);border-radius:var(--radius);padding:15px 18px;margin-bottom:16px;font-size:13.5px;line-height:1.75}
   .banner.show{display:flex}
@@ -224,7 +224,7 @@
 </header>
 
 <main>
-  <!-- 实时新版本更新通知横幅（当官方仓库有新提交/新版本时自动向所有已部署用户弹出） -->
+  <!-- Banner thông báo cập nhật phiên bản mới theo thời gian thực (tự động hiển thị khi repo chính thức có commit/phiên bản mới) -->
   <div class="banner" id="updateBanner" style="border-color:rgba(79,140,255,.65);background:linear-gradient(90deg,rgba(79,140,255,.16),rgba(167,139,250,.05));align-items:center;justify-content:space-between;flex-wrap:wrap">
     <div style="display:flex;gap:12px;align-items:flex-start;flex:1;min-width:260px">
       <span class="ic">🔔</span>
@@ -241,7 +241,7 @@
     </div>
   </div>
 
-  <!-- 版本状态与官方仓库更新中心面板 -->
+  <!-- Bảng điều khiển trung tâm cập nhật và trạng thái phiên bản -->
   <div class="card" id="repoPanel" style="display:none;border-color:rgba(79,140,255,.45);margin-bottom:16px">
     <h3>
       <svg viewBox="0 0 16 16" width="15" height="15" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path></svg>
@@ -279,7 +279,7 @@
     <button data-t="docs">接入文档</button>
   </nav>
 
-  <!-- ==================== 账号池 ==================== -->
+  <!-- ==================== Hồ chứa tài khoản ==================== -->
   <section class="tab active" id="tab-pool">
     <div class="warnbar" id="expWarn" style="display:none">
       <span id="expWarnText"></span>
@@ -364,7 +364,7 @@
     </div>
   </section>
 
-  <!-- ==================== 获取 Cookie ==================== -->
+  <!-- ==================== Lấy Cookie ==================== -->
   <section class="tab" id="tab-cookie">
     <div class="card" style="border-color:rgba(52,211,153,.45)">
       <h3>方式一：浏览器扩展 <span class="tag">推荐 · 零命令行 · 全平台</span></h3>
@@ -527,7 +527,7 @@
     </div>
   </section>
 
-  <!-- ==================== 任务记录 ==================== -->
+  <!-- ==================== Nhật ký nhiệm vụ ==================== -->
   <section class="tab" id="tab-tasks">
     <div class="card">
       <h3>生成任务记录 <span class="tag" id="taskCount">0</span></h3>
@@ -546,7 +546,7 @@
     </div>
   </section>
 
-  <!-- ==================== 媒体库 ==================== -->
+  <!-- ==================== Thư viện Media ==================== -->
   <section class="tab" id="tab-media">
     <div class="card">
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px">
@@ -564,7 +564,7 @@
     </div>
   </section>
 
-  <!-- ==================== 接口测试 ==================== -->
+  <!-- ==================== Kiểm thử API ==================== -->
   <section class="tab" id="tab-play">
     <div class="card">
       <h3>在线生图测试 <span class="tag">POST /v1/images/generations</span></h3>
@@ -595,7 +595,7 @@
     </div>
   </section>
 
-  <!-- ==================== 接入文档 ==================== -->
+  <!-- ==================== Tài liệu tích hợp ==================== -->
   <section class="tab" id="tab-docs">
     <div class="card doc">
       <h3>接入说明</h3>
@@ -758,9 +758,9 @@ t = requests.post(<span class="s">"BASE/v1/videos"</span>, json={<span class="s"
 <div id="toasts"></div>
 
 <script>
-/* ================= 界面语言 / UI language =================
- * 中文是源语言；英文通过下面的词典在渲染时替换（静态文本、动态插入的节点、alert/confirm/prompt）。
- * 新增中文文案时，请在 I18N_EN（整句）或 I18N_EN_PATTERNS（含变量）里补上英文。 */
+/* ================= Ngôn ngữ giao diện / UI language =================
+ * Tiếng Trung là ngôn ngữ nguồn; tiếng Anh được thay thế khi render qua từ điển bên dưới (văn bản tĩnh, node chèn động, alert/confirm/prompt).
+ * Khi thêm câu văn tiếng Trung mới, vui lòng bổ sung tiếng Anh trong I18N_EN (cả câu) hoặc I18N_EN_PATTERNS (chứa biến). */
 const LANG_STORE = 'muse2api_lang';
 const LANG = (() => {
   try { const v = localStorage.getItem(LANG_STORE); if (v === 'zh' || v === 'en') return v; } catch (e) {}
@@ -770,7 +770,7 @@ function setLang(v){
   try { localStorage.setItem(LANG_STORE, v); } catch (e) {}
   location.reload();
 }
-/* 整句：中文 → 英文 */
+/* Cả câu: Tiếng Trung → Tiếng Anh */
 const I18N_EN = {
   "muse2api · 账号池控制台": "muse2api · Account Pool Console",
   "Muse 网页额度 · 反代 API": "Muse web quota · Reverse-proxy API",
@@ -1133,7 +1133,7 @@ const I18N_EN = {
   "✓ 会话有效，可正常生成": "✓ Session valid; generation should work",
   "✗ 保活失败: 未知错误": "✗ Keep-alive failed: unknown error",
 };
-/* 含富文本的块：data-i18n="key" → 英文 innerHTML（须保留原有子元素的 id/class/属性） */
+/* Khối chứa rich text: data-i18n="key" → innerHTML tiếng Anh (phải giữ nguyên id/class/thuộc tính của các phần tử con ban đầu) */
 const I18N_EN_HTML = {
   "repo-status-desc": "Comparing your local version with the latest version in the official GitHub repository… (online upgrades keep your <code>.env</code> keys and the <code>data/</code> Account Pool and media data)",
   "auth-banner": "\n      <b>Enter your API Key first so the page can load data</b><br>\n      <span style=\"color:var(--muted)\">\n        The API Key is this service's own \"access password\". It stops other people from using your Muse account quota.\n        It is <b style=\"color:var(--text)\">not</b> your Muse password. It is a random string generated at deploy time (it starts with <code>m2a_</code>).<br>\n        Paste it into the box at the top right and click \"Save\". Your browser remembers it, so you won't need to enter it again.\n      </span>\n    ",
@@ -1157,7 +1157,7 @@ const I18N_EN_HTML = {
   "tool-calls-hint": "\n        <b>About the \"tool calling\" limitation (important, tested):</b><br>\n        The muse.ai web assistant has an explicit alignment policy that refuses to \"output fake tool-call JSON\". Its actual reply in testing was\n        \"I won't output 'fake tool calls' in this JSON format — I don't have a get_weather tool.\"\n        Three prompt protocols with different wording and placement were tried, and all failed.<br>\n        So: <b>autonomous agent modes</b> that depend on <code>tool_calls</code> (reading/writing files, running commands, etc.) can't be supported;\n        but all <b>Q&amp;A-style</b> usage (chat, coding, explaining, translating, summarizing, images, videos) <b>works fully</b>.<br>\n        If a client sends a <code>tools</code> field anyway, the API won't error: it ignores the tool declarations and answers as a normal chat.\n      ",
   "col-enabled": "Enabled",
 };
-/* 含变量的文案：[正则源码, 替换串]，按顺序匹配整段文本 */
+/* Văn bản chứa biến: [mã nguồn regex, chuỗi thay thế], khớp tuần tự toàn bộ đoạn văn bản */
 const I18N_EN_PATTERNS = ([
   ["(\\d+) 秒前", "$1s ago"],
   ["(\\d+) 分钟前", "$1 min ago"],
@@ -1270,7 +1270,7 @@ function t(s, depth = 0){
   if (hasOwn(I18N_EN, k)) return s.replace(k, () => I18N_EN[k]);
   for (const [re, rep] of I18N_EN_PATTERNS) {
     if (!re.test(k)) continue;
-    // 捕获组（多为嵌套的服务端消息）也递归翻译
+    // Các nhóm capture (thường là thông điệp lồng nhau từ server) cũng được dịch đệ quy
     const out = k.replace(re, (...m) => rep.replace(/\$(\d)/g, (_, i) => t(m[+i] ?? '', depth + 1)));
     return s.replace(k, () => out);
   }
@@ -1301,7 +1301,7 @@ function translateTree(root){
       const v = el.getAttribute(a);
       if (v && HAN_RE.test(v)) { const n = t(v); if (n !== v) el.setAttribute(a, n); }
     }
-    // 仅翻译文本框里的默认示例内容；<option value> 等是提交给服务端的数据，不能动
+    // Chỉ dịch nội dung ví dụ mặc định trong ô văn bản; các giá trị như <option value> là dữ liệu gửi lên server, không được thay đổi
     if (el.tagName === 'INPUT' && el.type === 'text' && HAN_RE.test(el.defaultValue) && el.value === el.defaultValue) {
       el.value = el.defaultValue = t(el.defaultValue);
     }
@@ -1329,14 +1329,14 @@ if (LANG === 'en') {
   }
 }
 
-/* ================= 基础 ================= */
+/* ================= Cơ sở (Core & Auth) ================= */
 const $ = id => document.getElementById(id);
 const KEY_STORE = 'muse2api_key';
 let KEY = localStorage.getItem(KEY_STORE) || new URLSearchParams(location.search).get('key') || '';
 $('key').value = KEY;
 $('dBase').textContent = location.origin + '/v1';
 
-/* 登录状态：控制提示条和 Key 输入框高亮 */
+/* Trạng thái đăng nhập: Điều khiển thanh thông báo và highlight ô nhập Key */
 let authOK = null;
 function setAuth(ok){
   if (authOK === ok) return;
@@ -1433,7 +1433,7 @@ function cp(el){
   navigator.clipboard.writeText(t).then(() => toast('已复制', 'ok'));
 }
 
-/* ================= 页签 ================= */
+/* ================= Tab điều hướng ================= */
 function goTab(name){
   const b = document.querySelector(`nav.tabs button[data-t="${name}"]`);
   if (b) b.click();
@@ -1450,7 +1450,7 @@ document.querySelectorAll('nav.tabs button').forEach(b => {
   };
 });
 
-/* ================= 接入信息 / API Key ================= */
+/* ================= Thông tin kết nối / API Key ================= */
 let realKey = '';
 let keyShown = false;
 
@@ -1503,7 +1503,7 @@ async function copyKey(){ await copyText(realKey); }
 async function copyCmd(){ await copyText($('cmdText').textContent); }
 async function copyExKey(){ await copyText($('exKey').value); }
 
-/* 扩展方案：把 BASE URL / API Key 填进页面上的复制框 */
+/* Tiện ích mở rộng: Điền BASE URL / API Key vào ô sao chép trên trang */
 function fillExtFields(baseUrl){
   const root = (baseUrl || location.origin)
     .replace(/\/v1\/?$/i, '').replace(/\/+$/, '');
@@ -1539,7 +1539,7 @@ async function rotateKey(){
   }catch(e){ toast('生成失败：' + e.message, 'bad'); }
 }
 
-/* ================= 额度显示 ================= */
+/* ================= Hiển thị hạn mức Quota ================= */
 function quotaBadge(a){
   const q = a.quota;
   if (!q || !q.found){
@@ -1577,7 +1577,7 @@ async function queryQuota(aid, btn){
   }
 }
 
-/* ================= 有效期显示 ================= */
+/* ================= Hiển thị thời hạn hiệu lực ================= */
 function expiryBadge(a){
   const ts = a && a.expires_at;
   if (!ts) return '<span class="badge mute" title="未记录有效期">未知</span>';
@@ -1587,7 +1587,7 @@ function expiryBadge(a){
   const left = ts - Math.floor(Date.now() / 1000);
   if (left <= 0) return `<span class="badge bad" title="已于 ${fmtTime(ts)} 过期${est}">已过期</span>`;
   const days = left / 86400;
-  // 保留一位小数，别把「还剩 1.9 天」显示成「剩 1 天」（会让人以为快没了）
+  // Giữ lại 1 chữ số thập phân, tránh hiển thị "còn 1.9 ngày" thành "còn 1 ngày" (dễ gây hiểu nhầm là sắp hết hạn)
   const txt = days >= 1
     ? `剩 ${days >= 10 ? Math.round(days) : days.toFixed(1)} 天`
     : `剩 ${Math.max(1, Math.floor(left / 3600))} 小时`;
@@ -1595,7 +1595,7 @@ function expiryBadge(a){
   return `<span class="badge ${cls}" title="到期时间：${fmtTime(ts)}${est}">${txt}</span>`;
 }
 
-/* ================= 账号池 ================= */
+/* ================= Hồ chứa tài khoản ================= */
 let accounts = [];
 
 async function loadPool(){
@@ -1611,8 +1611,8 @@ async function loadPool(){
     $('pAcc').className = 'pill ' + (accounts.length ? 'on' : 'off');
     $('pAcc').innerHTML = `<span class="led"></span>账号 <b>${accounts.length}</b>`;
 
-    // 快过期 / 已过期提醒。hatch_vml 只有约 2 天寿命，且不会因为使用而延长，
-    // 所以这里是刚需提醒，不是锦上添花。
+    // Cảnh báo sắp hết hạn / đã hết hạn. hatch_vml chỉ có vòng đời khoảng 2 ngày và không được gia hạn thêm khi sử dụng,
+    // vì vậy đây là cảnh báo thiết yếu, không phải tính năng phụ trợ.
     const now = Math.floor(Date.now() / 1000);
     const soon = accounts.filter(a => a.enabled && a.expires_at &&
                                       a.expires_at - now < 12 * 3600);
@@ -1757,7 +1757,7 @@ async function delAcc(id, label){
   }catch(e){ toast('删除失败：' + e.message, 'bad'); }
 }
 
-/* ================= 任务记录 ================= */
+/* ================= Nhật ký nhiệm vụ ================= */
 async function loadTasks(){
   try{
     const d = await api('/admin/tasks?limit=60');
@@ -1797,7 +1797,7 @@ async function clearTasks(){
   }catch(e){ toast('清空失败：' + e.message, 'bad'); }
 }
 
-/* ================= 媒体库 ================= */
+/* ================= Thư viện Media ================= */
 let _allMedia = [];
 let _selectedMedia = new Set();
 
@@ -1930,7 +1930,7 @@ async function loadMedia(){
   }catch(e){ $('mediaGrid').innerHTML = `<div class="empty">加载失败：${esc(e.message)}</div>`; }
 }
 
-/* ================= 在线测试 ================= */
+/* ================= Kiểm thử trực tuyến ================= */
 async function runImage(){
   const btn = $('imgBtn'), box = $('imgRes');
   const prompt = $('imgPrompt').value.trim();
@@ -2006,7 +2006,7 @@ async function runVideo(){
   }
 }
 
-/* ================= 官方仓库实时更新检测、弹窗通知与一键升级 ================= */
+/* ================= Kiểm tra cập nhật thời gian thực từ repo chính thức, thông báo popup & nâng cấp một chạm ================= */
 let _notifiedSha = localStorage.getItem('muse2api_notified_sha') || '';
 let _dismissedSha = localStorage.getItem('muse2api_dismissed_sha') || '';
 let _lastRepoStatus = null;
@@ -2030,7 +2030,7 @@ function dismissUpdateBanner(){
 async function loadRepoStatus(force){
   try{
     let s = await api('/admin/update/check' + (force ? '?force=true' : ''));
-    // 若服务端网络无法直连 GitHub API，则由用户浏览器端直接请求 GitHub API 兜底检测
+    // Nếu mạng phía server không thể kết nối trực tiếp GitHub API, trình duyệt của người dùng sẽ gửi request dự phòng tới GitHub API
     if (!s.remote_sha){
       try{
         const gr = await fetch('https://api.github.com/repos/czg86389-hub/muse2api/commits?sha=main&per_page=5');
@@ -2135,7 +2135,7 @@ async function upgradeNow(){
   }
 }
 
-/* ================= 总览刷新 ================= */
+/* ================= Làm mới tổng quan ================= */
 async function loadStatus(){
   try{
     const d = await api('/admin/status');

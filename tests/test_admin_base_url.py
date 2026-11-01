@@ -1,4 +1,4 @@
-"""Run: python tests/test_admin_base_url.py; uses no live account, no browser."""
+"""Chạy: python tests/test_admin_base_url.py; không dùng tài khoản thật, không cần trình duyệt."""
 import asyncio
 import importlib.util
 import json
@@ -20,7 +20,7 @@ class Response:
 
 
 class Client:
-    """Minimal ASGI test client using the standard library, no httpx dependency."""
+    """Client kiểm thử ASGI tối giản dùng thư viện chuẩn, không phụ thuộc httpx."""
 
     def __init__(self, app, headers):
         self.app, self.headers = app, headers
@@ -70,7 +70,7 @@ async def check(source, home, public_base):
                       MUSE2API_KEY="test-only", MUSE2API_PUBLIC_BASE=public_base)
     sys.path.insert(0, str(source.parent))
     for name in ("config", "store", "engine", "cdp"):
-        sys.modules.pop(name, None)          # config reads MUSE2API_* at import
+        sys.modules.pop(name, None)          # config đọc MUSE2API_* tại thời điểm import
     spec = importlib.util.spec_from_file_location("admin_base_url_test_target", source)
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
@@ -89,7 +89,7 @@ async def check(source, home, public_base):
         apikey = await client.get("/admin/apikey")
         expect(apikey.status_code == 200, "GET /admin/apikey failed")
 
-        # admin.html:1438 only writes #inBase when base_url is truthy
+        # admin.html chỉ ghi #inBase khi base_url có giá trị truthy
         expect(bool(served["base_url"]) == bool(public_base),
                f"base_url={served['base_url']!r} for PUBLIC_BASE={public_base!r}")
         expect(served["base_url"] == apikey.json()["base_url"],

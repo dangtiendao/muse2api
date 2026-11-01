@@ -1,4 +1,4 @@
-"""Offline regression for per-account and repeated quota page isolation."""
+"""Kiểm thử hồi quy offline cho khả năng cô lập trang hạn mức quota theo từng tài khoản và lặp lại."""
 import importlib.util
 import sys
 from pathlib import Path

@@ -1,4 +1,4 @@
-"""Run: python tests/test_ref_image_safety.py; no external network or live account."""
+"""Chạy: python tests/test_ref_image_safety.py; không dùng mạng bên ngoài hoặc tài khoản thật."""
 import asyncio
 import base64
 from email.message import Message
@@ -140,7 +140,7 @@ def check(home):
         assert opener.open.call_args.args[0].full_url == "http://public.example/next"
     print("all_redirect_codes_rechecked_private_refused_public_allowed=PASS")
 
-    # The real opener must not resolve the hostname again after validation.
+    # Opener thực tế không được phân giải lại hostname sau khi đã xác thực an toàn.
     for scheme, port in (("http", 8080), ("https", 443)):
         sock = Mock()
         sock.makefile.return_value = io.BytesIO(

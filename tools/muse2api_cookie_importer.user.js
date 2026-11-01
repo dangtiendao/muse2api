@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Muse2API Cookie 导入助手
+// @name         Muse2API Cookie Import Helper
 // @namespace    https://github.com/czg86389-hub/muse2api
 // @version      1.1.1
-// @description  在 muse.ai 网页上一键导出并推送核心 Cookie 至 muse2api 账号池，支持现代化悬浮面板、状态指示与剪贴板备份
+// @description  Trích xuất và đẩy Cookie cốt lõi lên hồ chứa tài khoản muse2api chỉ với một cú nhấp chuột trên trang web muse.ai, hỗ trợ bảng nổi hiện đại, hiển thị trạng thái và sao lưu clipboard
 // @author       MUSE2API Contributors
 // @match        https://muse.ai/*
 // @match        https://*.muse.ai/*
@@ -304,7 +304,7 @@
                   box-shadow:0 20px 50px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(96, 165, 250, 0.25);
                   backdrop-filter:blur(16px); font-size:13px; line-height:1.4;">
         
-        <!-- 头部 / Tiêu đề bảng điều khiển -->
+        <!-- Tiêu đề bảng điều khiển (Header) -->
         <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; padding-bottom:10px; border-bottom:1px solid #1e293b;">
           <div style="display:flex; align-items:center; gap:8px;">
             <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#38bdf8; box-shadow:0 0 10px #38bdf8;"></span>
@@ -314,13 +314,13 @@
           <button id="muse-close-btn" style="background:transparent; border:none; color:#64748b; font-size:18px; cursor:pointer; padding:0 4px; line-height:1;">✕</button>
         </div>
 
-        <!-- 状态指示栏 / Thanh chỉ báo trạng thái phiên -->
+        <!-- Thanh chỉ báo trạng thái phiên (Status Bar) -->
         <div style="background:#0f172a; border:1px solid #1e293b; border-radius:10px; padding:10px 12px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center;">
           <span style="font-size:12px; color:#94a3b8;">当前网页会话 / Phiên hiện tại</span>
           <span id="muse-status-tag" style="font-size:12px; font-weight:600; color:#94a3b8;">检测中…</span>
         </div>
 
-        <!-- 表单配置项（直接内嵌输入框，自动记忆） / Các trường cấu hình -->
+        <!-- Các trường cấu hình (nhúng trực tiếp ô nhập liệu, tự động lưu) -->
         <div style="margin-bottom:12px;">
           <div style="font-size:11px; color:#94a3b8; margin-bottom:5px; font-weight:500;">服务地址 (Base URL)</div>
           <input id="muse-cfg-base" type="text" placeholder="如 https://muse.yourdomain.com 或 http://localhost:18610"
@@ -345,7 +345,7 @@
                         border-radius:8px; color:#f1f5f9; font-size:12px; outline:none;">
         </div>
 
-        <!-- 动作操作区 / Khu vực nút hành động -->
+        <!-- Khu vực nút hành động (Actions) -->
         <div style="display:flex; flex-direction:column; gap:8px;">
           <button id="muse-action-push" style="width:100%; padding:10px 0; border:none; border-radius:10px;
                   background:linear-gradient(135deg, #0284c7, #2563eb); color:#fff;
@@ -366,7 +366,7 @@
           </div>
         </div>
 
-        <!-- 底部提示 / Chú thích chân trang -->
+        <!-- Chú thích chân trang (Footer Hint) -->
         <div style="margin-top:14px; padding-top:10px; border-top:1px solid #1e293b; display:flex; justify-content:space-between; align-items:center; font-size:11px; color:#64748b;">
           <span>配置将自动保存于浏览器本地</span>
           <span>按 Esc 或右上角关闭</span>
@@ -377,7 +377,7 @@
     document.body.appendChild(panel);
     updateStatusBadge();
 
-    // 绑定事件与自动保存 / Liên kết sự kiện và tự động ghi nhớ input
+    // Liên kết sự kiện và tự động ghi nhớ input (auto-save)
     const baseIn = document.getElementById('muse-cfg-base');
     const keyIn = document.getElementById('muse-cfg-key');
     const labelIn = document.getElementById('muse-cfg-label');

@@ -1,4 +1,4 @@
-"""A model refusal is terminal and must not consume a second account."""
+"""Sự từ chối của mô hình (refusal) là điểm dừng cuối cùng và không được tiêu tốn thêm tài khoản thứ hai."""
 import importlib.util
 import os
 from pathlib import Path

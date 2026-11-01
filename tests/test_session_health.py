@@ -1,4 +1,4 @@
-"""Offline regression: python tests/test_session_health.py [project_dir] [--observe]."""
+"""Kiểm thử hồi quy offline: python tests/test_session_health.py [project_dir] [--observe]."""
 import asyncio
 import copy
 import json
@@ -114,25 +114,25 @@ def check(root, home, observe):
         expect(error_name == want, 'page load failure misclassified')
         print('page', body, error_name)
 
-    # 验证 store 与 engine 的核心 cookie 定义严格一致，防止双处维护产生漂移
+    # Kiểm chứng định nghĩa cookie cốt lõi giữa store và engine đồng nhất tuyệt đối, chống sai lệch khi bảo trì hai nơi
     import store as store_module
     import engine as engine_module
     expect(store_module.ESSENTIAL_COOKIES == engine_module.ESSENTIAL_COOKIES, 'store and engine ESSENTIAL_COOKIES must match exactly')
 
-    # 验证缺少 hatch_gw 时，账号依然判定 essential_ok 并支持正常入库与预续签
+    # Kiểm chứng khi thiếu hatch_gw, tài khoản vẫn được xác định essential_ok và hỗ trợ nhập kho cùng gia hạn bình thường
     no_gw_cookies = {'hatch_sess': 'fixture_sess', 'hatch_vml': 'fixture_vml', 'hatch_native_auth_device': 'fixture_dev'}
     a_no_gw = app.store.add_account(no_gw_cookies, cookies_exp={'hatch_vml': 1900012345})
     listed = next(acc for acc in app.store.list_accounts() if acc['id'] == a_no_gw['id'])
     expect(listed['essential_ok'] is True, 'account without hatch_gw must be essential_ok')
     print('no_gw_account_check', 'essential_ok', listed['essential_ok'])
 
-    # 验证缺少真正核心凭证（如缺 hatch_sess 或 hatch_vml）时，生产接口必须标记 essential_ok=False，且 API 接口返回 missing 预警
+    # Kiểm chứng khi thiếu chứng chỉ cốt lõi thực sự (như thiếu hatch_sess hoặc hatch_vml), endpoint sản xuất phải đánh dấu essential_ok=False và trả về cảnh báo missing
     invalid_cookies = {'foo': 'bar', 'hatch_native_auth_device': 'device_only'}
     a_invalid = app.store.add_account(invalid_cookies)
     listed_invalid = next(acc for acc in app.store.list_accounts() if acc['id'] == a_invalid['id'])
     expect(listed_invalid['essential_ok'] is False, 'account without hatch_sess and hatch_vml must NOT be essential_ok')
     
-    # 真实测试生产 add_account API 路由返回值中的 essential_missing
+    # Kiểm thử thực tế giá trị essential_missing trong phản hồi của router API add_account
     api_res = app.add_account(app.AccountRequest(cookies=invalid_cookies))
     expect('hatch_sess' in api_res['essential_missing'] and 'hatch_vml' in api_res['essential_missing'], 'API response must report missing essential cookies')
     expect(bool(api_res.get('warning')), 'API response must contain warning string when core tokens missing')

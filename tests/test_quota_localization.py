@@ -1,4 +1,4 @@
-"""Offline parser regression tests; standard library only, no CDP import."""
+"""Kiểm thử hồi quy bộ phân tích cú pháp offline; chỉ dùng thư viện chuẩn, không import CDP."""
 import ast
 from pathlib import Path
 import re
@@ -10,8 +10,8 @@ SOURCE_BYTES = SOURCE.read_bytes()
 tree = ast.parse(SOURCE_BYTES, filename=str(SOURCE))
 engine = next(n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == "MuseEngine")
 parser = next(n for n in engine.body if isinstance(n, ast.FunctionDef) and n.name == "_parse_quota")
-# Compile the actual method unchanged. Avoid importing browser dependencies or
-# constructing an engine, which could otherwise create profile directories.
+# Biên dịch phương thức thực tế mà không thay đổi. Tránh import các dependency trình duyệt hoặc
+# khởi tạo engine, vốn có thể tạo các thư mục profile trên đĩa.
 subset = ast.Module(body=[ast.ClassDef(name="MuseEngine", bases=[], keywords=[],
                                      body=[parser], decorator_list=[])], type_ignores=[])
 namespace = {"re": re, "unicodedata": unicodedata}

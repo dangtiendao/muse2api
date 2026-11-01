@@ -1,4 +1,4 @@
-"""Test admin media deletion endpoints without live network or browser."""
+"""Kiểm thử endpoint xóa media quản trị mà không cần mạng thật hay trình duyệt."""
 import asyncio
 import importlib.util
 import json
@@ -81,7 +81,7 @@ async def main():
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
 
-        # Create sample files
+        # Tạo các tệp mẫu
         f1 = os.path.join(media_dir, "sample1.webp")
         f2 = os.path.join(media_dir, "sample2.mp4")
         with open(f1, "w") as f:
@@ -90,31 +90,31 @@ async def main():
             f.write("content2")
 
         async with Client(module.app, {"Authorization": "Bearer test-secret"}) as client:
-            # 1. List media
+            # 1. Liệt kê media
             res = await client.get("/admin/media")
             assert res.status_code == 200, f"GET /admin/media failed: {res.status_code}"
             data = res.json()
             names = [m["name"] for m in data.get("media", [])]
             assert "sample1.webp" in names and "sample2.mp4" in names
 
-            # 2. Delete single file via POST /admin/media/delete
+            # 2. Xóa tệp đơn lẻ qua POST /admin/media/delete
             res = await client.post("/admin/media/delete", json_data={"names": ["sample1.webp"]})
             assert res.status_code == 200
             assert res.json().get("removed") == 1
             assert not os.path.exists(f1)
 
-            # 3. Path traversal attack blocked
+            # 3. Chặn đứng tấn công duyệt thư mục (Path traversal)
             res = await client.post("/admin/media/delete", json_data={"names": ["../app.py", "..\\app.py"]})
             assert res.status_code == 200
             assert res.json().get("removed") == 0
 
-            # 4. Delete via DELETE /admin/media/{name}
+            # 4. Xóa qua DELETE /admin/media/{name}
             res = await client.delete("/admin/media/sample2.mp4")
             assert res.status_code == 200
             assert res.json().get("status") == "ok"
             assert not os.path.exists(f2)
 
-            # 5. Non-existent returns 404
+            # 5. Không tồn tại trả về 404
             res = await client.delete("/admin/media/nonexistent.webp")
             assert res.status_code == 404
 

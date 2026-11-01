@@ -3,7 +3,7 @@
 Module ứng dụng chính (Application Entry Point & Controller):
   - Khởi tạo máy chủ FastAPI và định tuyến toàn bộ API endpoints.
   - Cung cấp giao diện tương thích 100% chuẩn OpenAI API:
-      + POST /v1/chat/completions          : Trò chuyện văn bản / viết mã, hỗ trợ SSE Stream打字机, tái sử dụng Tab ấm 2-3s.
+      + POST /v1/chat/completions          : Trò chuyện văn bản / viết mã, hỗ trợ SSE Stream mô phỏng máy đánh chữ, tái sử dụng Tab ấm 2-3s.
       + POST /v1/responses                 : Chuẩn đối thoại Codex thế hệ mới.
       + POST /v1/images/generations        : Văn bản sinh hình ảnh (Text-to-Image).
       + POST /v1/images/edits              : Chỉnh sửa ảnh tham chiếu (Image-to-Image, hỗ trợ 1 hoặc nhiều ảnh).
@@ -59,12 +59,12 @@ if not log.handlers:
 CFG.ensure_dirs()
 app = FastAPI(title="muse2api", version="1.6.4")
 
-# Cookie 助手脚本从 muse.ai 页面发起导入请求，需要放行该来源；
-# 浏览器扩展从 chrome-extension:// 发起，也一并放行。
+# Userscript Cookie Helper gửi yêu cầu import từ trang muse.ai nên cần cho phép nguồn gốc này;
+# Chrome Extension gửi từ chrome-extension:// cũng được cho phép đồng thời.
 #
-# 这里直接放行所有来源：本服务用 Bearer Key 鉴权、不依赖 Cookie，
-# 放行来源不会带来越权风险；反之如果把来源限死，浏览器端的智能体
-# （Open WebUI / LobeChat / 各种 Web 客户端）会被 CORS 拦住用不了。
+# Tại đây cho phép tất cả các nguồn gốc (*): Dịch vụ này xác thực bằng Bearer Key, không phụ thuộc vào Cookie,
+# việc cho phép nguồn gốc không gây rủi ro vượt quyền; ngược lại nếu giới hạn quá chặt, các agent phía trình duyệt
+# (Open WebUI / LobeChat / các web client khác nhau) sẽ bị chặn CORS và không thể kết nối.
 _origins = [o.strip() for o in (CFG.cors_origins or "").split(",") if o.strip()]
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 
@@ -80,10 +80,10 @@ engine = MuseEngine(CFG)
 
 
 class ConcurrencyLock:
-    """多账号并发调度锁。
-    由 CFG.max_concurrency 限制最大并发槽位；
-    同时提供与标准 Lock 兼容的 acquire / release / locked 接口，
-    确保向下兼容历史单锁断言与管理端操作。"""
+    """Khóa điều phối đồng thời đa tài khoản (Multi-Account Concurrency Lock).
+    Giới hạn số lượng slot đồng thời tối đa bởi CFG.max_concurrency;
+    đồng thời cung cấp giao diện acquire / release / locked tương thích với Lock tiêu chuẩn,
+    đảm bảo tương thích ngược với các assertion đơn khóa và thao tác quản trị trước đây."""
     def __init__(self, limit: int = 2):
         self.limit = max(1, limit)
         self._sem = threading.Semaphore(self.limit)
@@ -121,7 +121,7 @@ class ConcurrencyLock:
 
 
 class AccountPoolManager:
-    """账号并发冲突管理器：确保同一账号不会同时被两个并发任务操作，多账号则并行执行。"""
+    """Bộ quản lý xung đột đồng thời tài khoản: Đảm bảo cùng một tài khoản không bị thao tác đồng thời bởi hai tác vụ, trong khi nhiều tài khoản khác nhau sẽ chạy song song."""
     def __init__(self, store_instance):
         self.store = store_instance
         self.busy_accounts: set[str] = set()
@@ -177,10 +177,10 @@ IMAGE_TASK_LOCK = threading.Lock()
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
-# ------------------------- OpenAI 风格的错误响应 -------------------------
-# 各类智能体基本都按 OpenAI 的 {"error": {"message": ...}} 取错误信息；
-# FastAPI 默认返回的是 {"detail": ...}，客户端会读不到原因、只显示"未知错误"。
-# 所以 /v1/* 统一转成 OpenAI 格式，管理接口保持原样（前端依赖 detail）。
+# ------------------------- Phản hồi lỗi theo chuẩn OpenAI -------------------------
+# Các agent hầu hết đều đọc thông tin lỗi theo định dạng {"error": {"message": ...}} của OpenAI;
+# FastAPI mặc định trả về {"detail": ...}, khiến client không đọc được nguyên nhân và chỉ hiện "Unknown error".
+# Vì vậy toàn bộ /v1/* được chuẩn hóa sang định dạng OpenAI, trong khi các API quản trị giữ nguyên (frontend phụ thuộc detail).
 def _err_type(status: int) -> str:
     if status == 404:
         return "not_found_error"
@@ -222,14 +222,14 @@ MODELS = [
      "description": "Muse Video —— 文生视频 / 图生视频（网页免费额度）"},
 ]
 
-# 下游（Codex / Cline / 各种客户端）习惯按 OpenAI、Anthropic 的名字传模型，
-# 这里统一映射到 muse 的真实能力上。
+# Các client phía dưới (Codex / Cline / các client khác) quen truyền tên model theo chuẩn OpenAI, Anthropic,
+# tại đây được ánh xạ đồng nhất sang các năng lực thực tế của muse.ai.
 #
-# 说明：muse.ai 网页是自动路由的 agent，对外**没有可枚举的模型清单**，
-# 能稳定调用的就是三条真实能力 —— Muse Spark（语言/代码）、
-# Muse Image（生图）、Muse Video（生视频）。别名只是让下游不用改配置。
+# Giải thích: Trang web muse.ai là agent tự động định tuyến, bên ngoài **không có danh sách model liệt kê được**,
+# năng lực có thể gọi ổn định gồm ba nhánh chính —— Muse Spark (ngôn ngữ / code),
+# Muse Image (sinh ảnh), Muse Video (sinh video). Bí danh alias chỉ nhằm giúp client không cần đổi cấu hình.
 MODEL_ALIASES = {
-    # ---- 文本 / 代码 → muse-spark ----
+    # ---- Văn bản / Code → muse-spark ----
     "muse-text": "muse-spark", "muse-chat": "muse-spark", "muse-llm": "muse-spark",
     "koda": "muse-spark",
     "gpt-3.5-turbo": "muse-spark", "gpt-4": "muse-spark", "gpt-4-turbo": "muse-spark",
@@ -245,10 +245,10 @@ MODEL_ALIASES = {
     "deepseek-chat": "muse-spark", "deepseek-coder": "muse-spark",
     "deepseek-reasoner": "muse-spark", "qwen-coder": "muse-spark",
     "gemini-2.5-pro": "muse-spark", "gemini-2.5-flash": "muse-spark",
-    # ---- 生图 → muse-image ----
+    # ---- Sinh ảnh → muse-image ----
     "muse-img": "muse-image", "dall-e": "muse-image", "dall-e-3": "muse-image",
     "gpt-image-1": "muse-image", "flux": "muse-image", "midjourney": "muse-image",
-    # ---- 生视频 → muse-video ----
+    # ---- Sinh video → muse-video ----
     "muse-vid": "muse-video", "muse-videos": "muse-video",
     "sora": "muse-video", "sora-2": "muse-video", "veo": "muse-video",
     "veo-3": "muse-video", "kling": "muse-video", "runway": "muse-video",
@@ -260,7 +260,7 @@ def resolve_model(name: str | None, default: str = "muse-image") -> str:
     return MODEL_ALIASES.get(n, n or default)
 
 
-# ------------------------- 鉴权 -------------------------
+# ------------------------- Xác thực quyền truy cập (Authentication) -------------------------
 def auth(authorization: str | None = Header(default=None)):
     if not CFG.api_key:
         return True
@@ -273,11 +273,11 @@ def auth(authorization: str | None = Header(default=None)):
     return True
 
 
-# ------------------------- 请求模型 -------------------------
+# ------------------------- Mô hình DTO Request (Request Models) -------------------------
 
 def _renew_and_persist(acc_id: str, wake_vm: bool = True, force: bool = False) -> dict | None:
-    """调用 /api/session 续签账号 cookie 并写回 store，返回最新账号 dict。
-    近期（10分钟内）已续签且状态正常的账号直接复用，避免每次请求阻塞 2~3 秒 HTTP 往返。"""
+    """Gọi /api/session để gia hạn cookie tài khoản và ghi lại vào store, trả về dict tài khoản mới nhất.
+    Tài khoản vừa gia hạn gần đây (trong 10 phút) và trạng thái bình thường sẽ được tái sử dụng trực tiếp để tránh chặn 2~3 giây khứ hồi HTTP mỗi request."""
     acc = store.get_account(acc_id)
     if not acc or not acc.get("cookies"):
         return acc
@@ -309,9 +309,9 @@ def _renew_and_persist(acc_id: str, wake_vm: bool = True, force: bool = False) -
 
 def safe_chat_stream(cookies: dict, prompt: str, expires: dict | None,
                      timeout: int, account_id: str | None):
-    """在独立线程中执行 chat_stream 并持有 GEN_LOCK，通过 Queue 往外吐。
-    无论下游客户端何时断连、异常或超时，stop_event + finally 块保证 100% 立即释放 GEN_LOCK，绝不死锁。
-    若首字前遇到单账号 VM 卡死或会话异常，自动切换下一个健康账号重试一次。"""
+    """Thực thi chat_stream trong luồng độc lập đồng thời nắm giữ GEN_LOCK, đẩy dữ liệu ra ngoài qua Queue.
+    Bất kể client phía dưới ngắt kết nối, gặp ngoại lệ hay timeout lúc nào, khối stop_event + finally bảo đảm 100% giải phóng GEN_LOCK ngay lập tức, triệt tiêu nguy cơ bế tắc (deadlock).
+    Nếu gặp sự cố VM treo hoặc phiên bất thường trước khi xuất chữ đầu tiên, hệ thống sẽ tự động chuyển sang tài khoản lành mạnh tiếp theo để thử lại một lần."""
     import queue
     q = queue.Queue(maxsize=100)
     stop_event = threading.Event()
@@ -447,10 +447,10 @@ class ChatMessage(BaseModel):
 
 
 class ChatRequest(BaseModel):
-    """OpenAI Chat Completions 请求。
+    """Yêu cầu OpenAI Chat Completions.
 
-    对第三方客户端要尽量宽松：不认识字段一律忽略（Pydantic 默认行为），
-    只挑我们真正用得上的读 —— 否则各种智能体各传各的参数就会 422。
+    Đối với client bên thứ ba cần xử lý mềm dẻo tối đa: bỏ qua toàn bộ các trường không nhận biết (hành vi mặc định của Pydantic),
+    chỉ lọc các trường thực sự cần dùng — tránh trường hợp các agent khác nhau truyền tham số riêng gây lỗi 422 Unprocessable Entity.
     """
     model: str = "muse-spark"
     messages: list[ChatMessage] = []
@@ -458,8 +458,8 @@ class ChatRequest(BaseModel):
     temperature: float | None = None
     max_tokens: int | None = None
     timeout: int | None = None
-    prompt: str | None = None       # 兼容把 prompt 直接放顶层的客户端
-    # 下面这些声明出来只是为了「能读到」，muse.ai 端不做对应处理
+    prompt: str | None = None       # Tương thích với các client đặt trực tiếp prompt ở cấp cao nhất (top-level)
+    # Các trường bên dưới được khai báo chỉ để "đọc được dữ liệu", phía muse.ai không xử lý tương ứng
     tools: list | None = None
     tool_choice: object | None = None
     response_format: object | None = None
@@ -467,7 +467,7 @@ class ChatRequest(BaseModel):
 
 
 class ResponsesRequest(BaseModel):
-    """OpenAI Responses API（新版 Codex 默认走这个）。"""
+    """OpenAI Responses API (phiên bản Codex mới mặc định sử dụng endpoint này)."""
     model: str = "muse-spark"
     input: str | list | None = None
     instructions: str | None = None
@@ -482,8 +482,8 @@ class AccountRequest(BaseModel):
     label: str = ""
     cookies: dict[str, str] = Field(default_factory=dict)
     cookie_header: str | None = None
-    batch: str | None = None          # 多行文本，每行一个账号
-    expires: dict[str, int] = Field(default_factory=dict)   # cookie 名 -> 过期时间戳
+    batch: str | None = None          # Văn bản nhiều dòng, mỗi dòng một tài khoản
+    expires: dict[str, int] = Field(default_factory=dict)   # Tên cookie -> timestamp hết hạn
 
 
 class AccountPatch(BaseModel):
@@ -491,7 +491,7 @@ class AccountPatch(BaseModel):
     enabled: bool | None = None
 
 
-# ------------------------- 提示词构造 -------------------------
+# ------------------------- Xây dựng Prompt (Prompt Construction) -------------------------
 def _image_value(value: Any) -> str | None:
     if isinstance(value, str):
         return value.strip() or None
@@ -564,7 +564,7 @@ def build_image_prompt(r: ImageRequest) -> str:
 
 
 def _content_text(content) -> str:
-    """把 OpenAI 的 content 归一成纯文本（兼容多模态 list 形式）。"""
+    """Chuẩn hóa trường content của OpenAI thành văn bản thuần túy (tương thích dạng list đa phương thức)."""
     if content is None:
         return ""
     if isinstance(content, str):
@@ -585,23 +585,23 @@ def _content_text(content) -> str:
 
 
 def build_chat_prompt(messages: list[ChatMessage]) -> str:
-    """把 messages 拼成发给 muse.ai 的一段提示词。
+    """Ghép danh sách messages thành một đoạn prompt gửi tới muse.ai.
 
-    muse.ai 网页本身是个带上下文的会话，但本 API 是无状态的（每次可能落到
-    不同账号/页面），所以把历史拼进 prompt 最可控 —— 这正好匹配 Codex 这类
-    「每轮都带全量历史」的客户端。
+    Bản thân trang web muse.ai là một phiên hội thoại có ngữ cảnh, nhưng API này là không trạng thái (mỗi lần gọi có thể rơi vào
+    tài khoản/trang khác nhau), vì vậy việc ghép toàn bộ lịch sử vào prompt là phương án dễ kiểm soát nhất — điều này khớp hoàn hảo với các client như Codex
+    vốn mang toàn bộ lịch sử trong mỗi vòng đối thoại.
     """
     system, turns = [], []
     for m in messages:
         role = (m.role or "").strip().lower()
         text = _content_text(m.content).strip()
         if role == "tool":
-            # 工具执行结果 → 当成"用户提供的信息"发过去
+            # Kết quả thực thi tool → gửi đi dưới dạng "thông tin do người dùng cung cấp"
             if text:
                 turns.append(("user", "【工具执行结果】\n" + text))
             continue
         if not text:
-            # 部分客户端的 assistant 消息只带 tool_calls、没有正文
+            # Tin nhắn assistant của một số client chỉ có tool_calls mà không có nội dung văn bản
             if role == "assistant" and m.tool_calls:
                 turns.append(("assistant", "【请求调用工具】" + json.dumps(
                     m.tool_calls, ensure_ascii=False)[:600]))
@@ -611,7 +611,7 @@ def build_chat_prompt(messages: list[ChatMessage]) -> str:
         else:
             turns.append((role, text))
 
-    # 单轮且无系统指令 → 直接发原文，最贴近自然对话
+    # Hội thoại đơn vòng và không có chỉ thị hệ thống → gửi trực tiếp văn bản gốc, gần gũi nhất với hội thoại tự nhiên
     if len(turns) == 1 and not system and turns[0][0] == "user":
         return turns[0][1]
 
@@ -626,14 +626,14 @@ def build_chat_prompt(messages: list[ChatMessage]) -> str:
     return "\n\n".join(parts)
 
 
-# ------------------------- 工具调用（function calling）适配 -------------------------
-# muse.ai 的网页模型**不会**返回结构化的 tool_calls，所以这里做一层协议适配：
-#   1) 请求带 tools 时，把工具定义翻译成提示词里的【工具调用协议】；
-#   2) 模型按协议输出 ```json {"tool": "...", "arguments": {...}} ```；
-#   3) 我们把这段解析回 OpenAI 的 tool_calls 交给下游 agent。
+# ------------------------- Tương thích Gọi công cụ (Function Calling Adapter) -------------------------
+# Model web của muse.ai **không** tự động trả về tool_calls có cấu trúc, vì vậy tầng này thực hiện tương thích giao thức:
+#   1) Khi yêu cầu có tools, chuyển đổi định nghĩa tool thành [Giao thức gọi công cụ] trong prompt;
+#   2) Model xuất kết quả theo giao thức: ```json {"tool": "...", "arguments": {...}} ```;
+#   3) Hệ thống phân tích cú pháp đoạn JSON này thành tool_calls chuẩn OpenAI trả về cho agent.
 #
-# 注意：这是"尽力适配"而非保证 —— 目标模型是通用对话模型，没有针对
-# function calling 做微调，遵守协议的程度需要实测观察。
+# Lưu ý: Đây là giải pháp nỗ lực tối đa (best-effort) chứ không cam kết tuyệt đối — mô hình đích là mô hình hội thoại tổng quát,
+# không được tinh chỉnh chuyên biệt cho function calling, mức độ tuân thủ giao thức cần theo dõi thực tế.
 _TOOL_PROTOCOL_HEAD = """你可以根据需要调用以下工具来协助用户完成任务。
 若需调用工具，请直接输出如下格式的 JSON 代码块（不要包含其他多余解释）：
 ```json
@@ -647,7 +647,7 @@ _TOOL_PROTOCOL_HEAD = """你可以根据需要调用以下工具来协助用户�
 
 
 def _describe_params(params) -> str:
-    """把 JSON Schema 的参数描述成易读的多行文本。"""
+    """Mô tả các tham số của JSON Schema thành văn bản nhiều dòng dễ đọc."""
     if not isinstance(params, dict):
         return "      （无参数）"
     props = params.get("properties") or {}
@@ -665,10 +665,10 @@ def _describe_params(params) -> str:
 
 
 def build_tools_prompt(tools: list | None) -> str:
-    """把 tools 定义翻译成提示词片段（没有工具时返回空串）。
+    """Dịch định nghĩa tools thành đoạn prompt chỉ dẫn (trả về chuỗi rỗng khi không có tools).
 
-    同时兼容 Chat Completions 的 `{"type":"function","function":{...}}`
-    和 Responses API 的 `{"type":"function","name":...,"parameters":...}`。
+    Đồng thời tương thích định dạng `{"type":"function","function":{...}}` của Chat Completions
+    và `{"type":"function","name":...,"parameters":...}` của Responses API.
     """
     if not tools:
         return ""
@@ -692,7 +692,7 @@ _FENCE_RE = re.compile(r"```(?:json|JSON)?\s*([\s\S]*?)```")
 
 
 def _as_tool_calls(obj) -> list[dict] | None:
-    """把解析出的 JSON 转成 OpenAI tool_calls；不像工具调用就返回 None。"""
+    """Chuyển đổi JSON đã phân tích thành tool_calls chuẩn OpenAI; trả về None nếu không giống lệnh gọi công cụ."""
     raw = obj if isinstance(obj, list) else [obj]
     if not raw:
         return None
@@ -714,13 +714,13 @@ def _as_tool_calls(obj) -> list[dict] | None:
 
 
 def parse_tool_calls(text: str) -> tuple[list[dict] | None, str]:
-    """从模型输出里抽出工具调用。
+    """Trích xuất lệnh gọi công cụ từ đầu ra của mô hình.
 
-    返回 (tool_calls, 剩余文本)；抽不到就返回 (None, 原文)。
-    支持多种形态：
-    1) ```json ... ``` 代码块；
-    2) 裸 JSON（或带有前导 json/JSON 关键字）；
-    3) 文本中内嵌的完整 JSON 对象或数组。
+    Trả về (tool_calls, văn bản còn lại); nếu không trích xuất được thì trả về (None, văn bản gốc).
+    Hỗ trợ nhiều dạng định dạng:
+    1) Khối mã ```json ... ```;
+    2) JSON trần (hoặc có từ khóa dẫn đầu json/JSON);
+    3) Đối tượng hoặc mảng JSON hoàn chỉnh nhúng trong văn bản.
     """
     if not text:
         return None, text
@@ -799,19 +799,19 @@ def build_video_prompt(r: VideoRequest) -> str:
 
 
 def media_url(name: str) -> str:
-    """媒体地址。
+    """Địa chỉ truy cập tệp media.
 
-    配了 public_base 就返回**绝对 URL** —— OpenAI 兼容客户端（以及各类智能体
-    平台）拿到 data[].url 后一般会直接渲染或下载，相对路径会被解析到客户端
-    自己的域名上，导致 404。public_base 为空时退回相对路径。
+    Khi có cấu hình public_base sẽ trả về **URL tuyệt đối** —— các client tương thích OpenAI (cũng như các nền tảng agent)
+    sau khi nhận data[].url thường sẽ render hoặc tải về trực tiếp, đường dẫn tương đối có thể bị phân giải nhầm sang domain riêng của client
+    dẫn tới lỗi 404. Khi public_base để trống sẽ quay về đường dẫn tương đối.
     """
     base = _public_base()
     return f"{base}/v1/media/{name}" if base else f"/v1/media/{name}"
 
 
-# ------------------------- cookie 解析 -------------------------
+# ------------------------- Phân tích Cookie (Cookie Parser) -------------------------
 def parse_cookie_text(text: str) -> dict[str, str]:
-    """把 `a=1; b=2` / JSON / Set-Cookie 行解析成 dict。"""
+    """Phân tích chuỗi cookie dạng `a=1; b=2` / JSON / các dòng Set-Cookie thành dict."""
     text = (text or "").strip()
     if not text:
         return {}
@@ -836,7 +836,7 @@ def parse_cookie_text(text: str) -> dict[str, str]:
 
 
 def parse_batch(text: str) -> list[tuple[str, dict]]:
-    """批量导入：每行 `标签 | cookie串`，标签可省略。"""
+    """Nhập hàng loạt: Mỗi dòng có dạng `Nhãn | chuỗi cookie`, nhãn có thể để trống."""
     out: list[tuple[str, dict]] = []
     for raw in (text or "").splitlines():
         line = raw.strip()
@@ -846,7 +846,7 @@ def parse_batch(text: str) -> list[tuple[str, dict]]:
         body = line
         if "|" in line:
             head, tail = line.split("|", 1)
-            if "=" not in head:          # `|` 出现在 cookie 里时不算分隔符
+            if "=" not in head:          # Ký tự `|` xuất hiện bên trong cookie không được xem là dấu phân cách
                 label, body = head.strip(), tail.strip()
         cookies = parse_cookie_text(body)
         if cookies:
@@ -854,16 +854,16 @@ def parse_batch(text: str) -> list[tuple[str, dict]]:
     return out
 
 
-# ------------------------- 核心生成 -------------------------
+# ------------------------- Sinh nội dung Lõi (Core Generation) -------------------------
 def _sync_cookies(acc_id: str) -> dict:
-    """生成完从浏览器读回 cookie 并写回账号池。
+    """Đọc lại cookie từ trình duyệt sau khi sinh nội dung và cập nhật lại vào hồ chứa tài khoản.
 
-    实测结论：**核心 cookie 的 expires 不会被使用行为续期**（hatch_vml 固定
-    约 2 天就到期），这里同步回来的主要是那些每次访问都会重新下发的非核心
-    cookie（_fbp / wd / dpr 等）以及可能新增的条目，避免账号信息比实际更旧。
+    Kết luận thực nghiệm: **expires của các cookie cốt lõi không được gia hạn bởi hành vi sử dụng** (hatch_vml cố định
+    khoảng 2 ngày là hết hạn), việc đồng bộ tại đây chủ yếu áp dụng cho các cookie không cốt lõi được cấp phát lại mỗi lần truy cập
+    (_fbp / wd / dpr, v.v.) cũng như các mục mới xuất hiện, tránh để thông tin tài khoản bị cũ hơn thực tế.
 
-    注意：这个函数**绝不能把生成结果搞失败** —— 生成已经成功了，
-    同步只是锦上添花，出任何问题都只记一条日志。
+    Lưu ý: Hàm này **tuyệt đối không được làm thất bại kết quả sinh nội dung** — việc tạo nội dung đã thành công,
+    đồng bộ chỉ là thao tác bổ trợ, nếu có bất kỳ sự cố nào xảy ra cũng chỉ ghi một dòng nhật ký (log).
     """
     try:
         live = engine.read_cookies()
@@ -874,8 +874,8 @@ def _sync_cookies(acc_id: str) -> dict:
             return {"synced": 0}
         cur = dict(acc.get("cookies") or {})
         new_vals = {k: v["value"] for k, v in live.items() if v.get("value")}
-        # 有效期要「合并」而不是「覆盖」：会话 cookie 读回的 expires 是 -1，
-        # 若整体覆盖会把原有有效期记录清空（实测踩过这个坑）。
+        # Thời hạn hiệu lực phải được "hợp nhất" thay vì "ghi đè": cookie phiên đọc lại có expires là -1,
+        # nếu ghi đè toàn bộ sẽ làm mất bản ghi thời hạn hiệu lực gốc.
         exps = dict(acc.get("cookies_exp") or {})
         exps.update({k: v["expires"] for k, v in live.items()
                      if _pos(v.get("expires"))})
@@ -902,7 +902,7 @@ def _run_generation(prompt: str, kind: str, timeout: int,
                     reference_image: str | None = None,
                     reference_images: list[str] | None = None,
                     on_acquired=None) -> tuple[dict, str | None]:
-    # Browser ownership covers account selection, retry and cleanup, not just generate().
+    # Quyền sở hữu trình duyệt bao gồm chọn tài khoản, thử lại và dọn dẹp, không chỉ riêng hàm generate().
     deadline = time.monotonic() + max(1, timeout)
     if not GEN_LOCK.acquire(timeout=max(1, timeout)):
         raise MuseGenerationError("等待浏览器队列超时，请稍后重试")
@@ -927,7 +927,7 @@ def _run_generation_locked(prompt: str, kind: str, timeout: int,
     remaining_wait = int(deadline - time.monotonic()) if deadline is not None else timeout
     preferred_id = getattr(engine, "current_acc_id", None)
     if kind == "video" and not account_id:
-        # Prefer the last account that completed a video; session health alone is insufficient.
+        # Ưu tiên tài khoản gần nhất vừa hoàn thành video; chỉ dựa vào trạng thái phiên là chưa đủ.
         recent = sorted(list(store.tasks.values()), key=lambda task: task.get("created_at", 0), reverse=True)
         for task in recent:
             if task.get("kind") != "video" or task.get("status") != "completed" or not task.get("account"):
@@ -1004,7 +1004,7 @@ def _run_generation_locked(prompt: str, kind: str, timeout: int,
         engine.close_current_page()
 
 
-# ------------------------- 基础接口 -------------------------
+# ------------------------- Giao diện cơ sở (Base Endpoints) -------------------------
 @app.get("/healthz")
 def healthz():
     return {"status": "ok", "time": int(time.time())}
@@ -1023,7 +1023,7 @@ def models(_=Depends(auth)):
     return {"object": "list", "data": MODELS}
 
 
-# ------------------------- 生图 -------------------------
+# ------------------------- Sinh ảnh (Image Generation) -------------------------
 def _image_response(req: ImageRequest, res: dict) -> dict:
     item = {"revised_prompt": req.prompt, "url": media_url(res["filename"]),
             "size": req.size or "auto", "kind": res["kind"], "bytes": res["size"]}
@@ -1073,7 +1073,7 @@ def _queue_image(req: ImageRequest, prompt: str, reference_images: list[str],
                         "object": "image.task", "status": existing["status"],
                         "progress": existing.get("progress", 0),
                         "created_at": existing["created_at"]})
-        # ponytail: one Chromium worker; cap admission instead of adding a broker.
+        # ponytail: chỉ dùng một Chromium worker; giới hạn số lượng nạp vào thay vì dựng thêm broker phức tạp.
         if sum(t.get("kind") == "image" and t.get("status") in ("queued", "processing")
                for t in tasks) >= 8:
             raise HTTPException(429, "Image queue is full; retry later")
@@ -1094,7 +1094,7 @@ def _queue_image(req: ImageRequest, prompt: str, reference_images: list[str],
                 reference_images=reference_images,
                 on_progress=lambda p: store.update_task(tid, progress=p),
                 on_acquired=_on_acquired)
-            # Store only media metadata, not large base64 payloads or reference credentials.
+            # Chỉ lưu metadata của media, không lưu payload base64 lớn hoặc thông tin xác thực tham chiếu.
             store.update_task(tid, status="completed", progress=100, account=acc_id,
                               elapsed=round(time.time() - timing["t0"], 1),
                               url=media_url(res["filename"]),
@@ -1151,7 +1151,7 @@ async def images_generations(req: ImageRequest, _=Depends(auth)):
 
 @app.post("/v1/images/edits")
 async def images_edits(request: Request, _=Depends(auth)):
-    """OpenAI 兼容的图生图/图像编辑接口，兼容 multipart/form-data 与 application/json。"""
+    """Giao diện tạo ảnh từ ảnh tham chiếu (Image-to-Image / Image Edit) tương thích chuẩn OpenAI, hỗ trợ cả multipart/form-data và application/json."""
     content_type = request.headers.get("content-type", "").lower()
     prompt = ""
     model = "muse-image"
@@ -1244,7 +1244,7 @@ async def images_edits(request: Request, _=Depends(auth)):
     return _image_response(req_obj, res)
 
 
-# ------------------------- 生视频（异步任务） -------------------------
+# ------------------------- Sinh video (Tác vụ bất đồng bộ) -------------------------
 @app.post("/v1/videos")
 @app.post("/v1/videos/generations")
 async def create_video(req: VideoRequest, _=Depends(auth)):
@@ -1298,7 +1298,7 @@ def get_video(task_id: str, _=Depends(auth)):
     if out.get("status") == "completed":
         out["progress"] = 100
     elif out.get("status") == "processing":
-        # Progress reports observed milestones only; Muse exposes no percentage.
+        # Tiến độ chỉ báo cáo các cột mốc quan sát được; giao diện Muse không hiển thị phần trăm.
         out["progress"] = max(out.get("progress", 0) or 0, 15)
     vurl = out.get("url")
     if not vurl and isinstance(out.get("result"), dict):
@@ -1310,7 +1310,7 @@ def get_video(task_id: str, _=Depends(auth)):
     return out
 
 
-# ------------------------- 对话（OpenAI 兼容） -------------------------
+# ------------------------- Trò chuyện (Tương thích chuẩn OpenAI) -------------------------
 def _sse(obj: dict) -> str:
     return "data: " + json.dumps(obj, ensure_ascii=False) + "\n\n"
 
@@ -1323,18 +1323,18 @@ def _chat_chunk(cid: str, created: int, model: str, delta: dict,
 
 
 def _want_usage(stream_options) -> bool:
-    """下游（LangChain、部分 SDK / 智能体框架）会带
-    `stream_options.include_usage=true`，要求在 [DONE] 之前补一个
-    `choices: []` + `usage` 的分片。不发的话少数框架会一直等 usage 而卡住。"""
+    """Các thư viện phía dưới (LangChain, một số SDK / framework agent) thường truyền kèm
+    `stream_options.include_usage=true`, yêu cầu bổ sung một chunk `choices: []` + `usage` trước [DONE].
+    Nếu không gửi, một số ít framework sẽ chờ usage vô tận dẫn đến bị treo."""
     if isinstance(stream_options, dict):
         return bool(stream_options.get("include_usage"))
     return False
 
 
 def _pace_text(text: str, chunk_size: int = 2, delay: float = 0.012):
-    """把大块文本平滑切分为仿原生 LLM 打字机的微流式 Token。
-    若传入文本本身微小（<= 3 字），直接秒级放行，零延迟；
-    若传入文本是大块（如 DOM 批量刷新），按每 chunk_size 字间隔 delay 平滑输出。
+    """Chia văn bản thành các micro-token mượt mà mô phỏng máy đánh chữ của LLM gốc.
+    Nếu văn bản truyền vào rất ngắn (<= 3 ký tự), lập tức chuyển tiếp không độ trễ;
+    nếu văn bản truyền vào là khối lớn (như DOM làm mới hàng loạt), chia nhỏ theo chunk_size ký tự và giãn cách delay để xuất mượt mà.
     """
     if not text:
         return
@@ -1356,27 +1356,27 @@ _SSE_HEADERS = {
 
 @app.post("/v1/chat/completions")
 async def chat_completions(req: ChatRequest, _=Depends(auth)):
-    """OpenAI 兼容的对话接口 —— 各类智能体客户端都能接。
+    """Giao diện trò chuyện tương thích OpenAI —— hỗ trợ kết nối mọi ứng dụng và agent client.
 
-    说明：muse.ai 网页是**自动路由**的 agent，界面上没有模型选择器，所有请求
-    都会落到同一个网页助手（自称 Koda，底层是 Muse 系列语言模型）。所以
-    `model` 字段只用于兼容下游，不影响路由结果。
+    Giải thích: Trang web muse.ai là agent **tự động định tuyến**, trên giao diện không có bộ chọn mô hình, mọi yêu cầu
+    đều tới cùng một trợ lý web (tự xưng Koda, bên dưới là họ mô hình ngôn ngữ Muse). Vì vậy
+    trường `model` chỉ dùng để tương thích client phía dưới, không ảnh hưởng đến kết quả định tuyến.
 
-    请求带 `tools` 时，会注入【工具调用协议】并把模型输出的 JSON 解析回
-    `tool_calls`（muse.ai 没有原生 function calling，这层属于协议适配）。
+    Khi yêu cầu có `tools`, hệ thống sẽ inject [Giao thức gọi công cụ] và phân tích cú pháp JSON đầu ra của mô hình thành
+    `tool_calls` (muse.ai không có function calling gốc, tầng này đóng vai trò tương thích giao thức).
 
-    对话与生图/生视频共用同一个浏览器实例，靠 `GEN_LOCK` 串行。
+    Hội thoại cùng chia sẻ một phiên bản trình duyệt với sinh ảnh/sinh video, được tuần tự hóa bằng `GEN_LOCK`.
     """
     prompt = build_chat_prompt(req.messages) or (req.prompt or "").strip()
     if not prompt:
         raise HTTPException(400, "messages 为空")
 
-    # 工具调用协议默认不注入 —— 实测 muse.ai 的助手会明确拒绝输出"伪工具调用"，
-    # 注入反而污染正常回答；详见 config.py 的 tool_protocol 注释。
+    # Giao thức gọi công cụ mặc định không inject — thực tế trợ lý muse.ai sẽ từ chối rõ ràng việc xuất ra "công cụ giả lập",
+    # việc inject có thể làm nhiễu câu trả lời bình thường; xem chi tiết ghi chú tool_protocol trong config.py.
     tool_note = build_tools_prompt(req.tools) if CFG.tool_protocol else ""
     if tool_note:
-        # 放在末尾：开头是 agent 自己的 system 提示，夹在中间容易被忽略；
-        # 紧贴用户消息之前，模型对末尾指令的遵守度明显更高。
+        # Đặt ở cuối: phần đầu là prompt hệ thống của riêng agent, kẹp ở giữa dễ bị bỏ qua;
+        # đặt ngay sát trước tin nhắn người dùng giúp mô hình tuân thủ chỉ thị tốt hơn nhiều.
         prompt = prompt + "\n\n" + tool_note
 
     model = resolve_model(req.model, default="muse-spark")
@@ -1392,7 +1392,7 @@ async def chat_completions(req: ChatRequest, _=Depends(auth)):
     expires = acc.get("cookies_exp")
 
     def tool_call_deltas(calls: list[dict]) -> list[list[dict]]:
-        """按 OpenAI 习惯分两片发：先 id/name，再 arguments 全文。"""
+        """Gửi thành 2 phần theo quy ước OpenAI: trước tiên là id/name, sau đó là toàn văn arguments."""
         head = [{"index": i, "id": c["id"], "type": "function",
                  "function": {"name": c["function"]["name"], "arguments": ""}}
                 for i, c in enumerate(calls)]
@@ -1403,7 +1403,7 @@ async def chat_completions(req: ChatRequest, _=Depends(auth)):
     if req.stream:
         def sync_stream():
             try:
-                # 握手建立瞬间立即发送 role: assistant 首包，让下游客户端秒级捕获光标
+                # Ngay khi thiết lập bắt tay, gửi gói đầu tiên với role: assistant để client lập tức bắt được con trỏ
                 yield _sse(_chat_chunk(cid, created, model, {"role": "assistant"}))
 
                 stream_gen = safe_chat_stream(cookies, prompt, expires, timeout, account_id=acc_id)
@@ -1496,7 +1496,7 @@ async def chat_completions(req: ChatRequest, _=Depends(auth)):
 
 
 def _responses_messages(req: ResponsesRequest) -> list[ChatMessage]:
-    """把 Responses API 的 instructions / input 归一成 messages。"""
+    """Chuẩn hóa instructions / input của Responses API thành danh sách messages."""
     msgs: list[ChatMessage] = []
     if req.instructions:
         msgs.append(ChatMessage(role="system", content=req.instructions))
@@ -1512,7 +1512,7 @@ def _responses_messages(req: ResponsesRequest) -> list[ChatMessage]:
             if not isinstance(item, dict):
                 continue
             itype = item.get("type")
-            if item.get("role"):                      # message 形态
+            if item.get("role"):                      # Dạng message
                 msgs.append(ChatMessage(role=item["role"],
                                         content=item.get("content")))
             elif itype == "input_text":
@@ -1532,10 +1532,10 @@ def _sse_event(event: str, data: dict) -> str:
 
 @app.post("/v1/responses")
 async def responses_api(req: ResponsesRequest, _=Depends(auth)):
-    """OpenAI Responses API —— 新版 Codex 默认走这个端点。
+    """OpenAI Responses API —— Phiên bản Codex mới mặc định sử dụng endpoint này.
 
-    只实现 Codex 实际用到的子集：文本进 → 文本出（含流式事件）。
-    muse.ai 不会返回结构化的 tool_calls，关于工具调用的边界见 README。
+    Chỉ triển khai tập con mà Codex thực tế sử dụng: văn bản vào → văn bản ra (bao gồm các sự kiện stream).
+    muse.ai không trả về tool_calls có cấu trúc, ranh giới về gọi công cụ được nêu chi tiết trong README.
     """
     prompt = build_chat_prompt(_responses_messages(req))
     if not prompt:
@@ -1626,7 +1626,7 @@ def get_media(name: str):
     return FileResponse(p)
 
 
-# ------------------------- 管理：总览 -------------------------
+# ------------------------- Quản trị: Tổng quan (Admin Overview) -------------------------
 @app.get("/admin/status")
 def admin_status(_=Depends(auth)):
     base = _public_base()
@@ -1647,7 +1647,7 @@ def admin_status(_=Depends(auth)):
     }
 
 
-# ------------------------- 管理：账号池 -------------------------
+# ------------------------- Quản trị: Hồ chứa Tài khoản (Admin Accounts Pool) -------------------------
 @app.get("/admin/accounts")
 def list_accounts(_=Depends(auth)):
     return {"accounts": store.list_accounts(), "stats": store.stats()}
@@ -1656,7 +1656,7 @@ def list_accounts(_=Depends(auth)):
 @app.post("/admin/accounts")
 def add_account(req: AccountRequest, _=Depends(auth)):
     added: list[dict] = []
-    seen: list[dict] = []          # 本次导入的所有 cookie，用来检查核心项是否齐全
+    seen: list[dict] = []          # Toàn bộ cookie trong đợt import này, dùng để kiểm tra tính đầy đủ của các mục cốt lõi
 
     if req.batch:
         for label, cookies in parse_batch(req.batch):
@@ -1679,7 +1679,7 @@ def add_account(req: AccountRequest, _=Depends(auth)):
     if not added:
         raise HTTPException(400, "未解析到任何 cookie，请检查格式")
 
-    # 只要有一个账号把核心 cookie 凑齐就算通过（批量时按整体判断）
+    # Chỉ cần một tài khoản có đầy đủ các cookie cốt lõi là đạt yêu cầu (khi import hàng loạt sẽ đánh giá trên tổng thể)
     missing = [n for n in ESSENTIAL_COOKIES
                if not any(n in c for c in seen)]
     return {"added": added, "count": len(added),
@@ -1707,7 +1707,7 @@ def del_account(aid: str, _=Depends(auth)):
 
 @app.post("/admin/accounts/{aid}/test")
 async def test_account(aid: str, _=Depends(auth)):
-    """真实打开 muse.ai 验证该账号 cookie 是否仍可登录。"""
+    """Mở trang muse.ai thực tế để xác thực xem cookie của tài khoản có còn đăng nhập được hay không."""
     acc = store.get_account(aid)
     if not acc:
         raise HTTPException(404, "账号不存在")
@@ -1757,7 +1757,7 @@ async def relogin_account(aid: str, _=Depends(auth)):
 
 @app.post("/admin/accounts/{aid}/cookies")
 def update_cookies(aid: str, payload: dict = Body(...), _=Depends(auth)):
-    """更新某个账号的 cookie（用于会话过期后补新 cookie）。"""
+    """Cập nhật cookie cho một tài khoản (dùng khi phiên làm việc hết hạn cần bổ sung cookie mới)."""
     cookies = dict(payload.get("cookies") or {})
     if payload.get("cookie_header"):
         cookies.update(parse_cookie_text(payload["cookie_header"]))
@@ -1765,8 +1765,8 @@ def update_cookies(aid: str, payload: dict = Body(...), _=Depends(auth)):
         raise HTTPException(400, "未解析到 cookie")
     exp = {k: int(v) for k, v in (payload.get("expires") or {}).items()
            if _pos(v)}
-    # 补入的是「全新会话」的 cookie，有效期估算锚点必须重置到当下，
-    # 否则会沿用旧会话的锚点，把剩余天数算少。
+    # Dữ liệu bổ sung là cookie của "phiên làm việc hoàn toàn mới", mốc thời gian ước tính thời hạn phải được đặt lại về hiện tại,
+    # nếu không sẽ dùng mốc của phiên cũ làm tính sai số ngày còn lại ít đi.
     acc = store.update_account(aid, cookies=cookies, ok=None,
                                note="已更新 cookie",
                                expiry_anchor=int(time.time()),
@@ -1790,14 +1790,14 @@ def relogin(_=Depends(auth)):
         return JSONResponse({"ok": False, "error": str(exc)}, status_code=502)
 
 
-# ------------------------- 管理：额度 -------------------------
+# ------------------------- Quản trị: Hạn mức Quota (Admin Quota) -------------------------
 @app.post("/admin/accounts/{aid}/quota")
 async def query_quota(aid: str, _=Depends(auth)):
-    """打开 muse.ai 的 Settings 面板读该账号的额度（实时），并缓存到账号记录。
+    """Mở bảng Settings của muse.ai để đọc hạn mức của tài khoản (thời gian thực), đồng thời lưu cache vào bản ghi tài khoản.
 
-    返回例：{"plan":"Free plan","weekly_reset":"Sep 30",
-             "weekly_used_pct":1,"extra_left":"2B tokens left",
-             "extra_used_pct":0,"extra_expires":"never"}
+    Ví dụ kết quả: {"plan":"Free plan","weekly_reset":"Sep 30",
+                    "weekly_used_pct":1,"extra_left":"2B tokens left",
+                    "extra_used_pct":0,"extra_expires":"never"}
     """
     acc = store.get_account(aid)
     if not acc:
@@ -1828,15 +1828,15 @@ async def query_quota(aid: str, _=Depends(auth)):
 
 @app.post("/admin/quota")
 async def query_any_quota(_=Depends(auth)):
-    """用当前最久未用的可用账号查一次额度（同池账号共享同一 muse.ai 计划的
-    通常只有一人使用时够用；多账号时建议按账号查）。"""
+    """Sử dụng tài khoản khả dụng có thời gian chưa dùng lâu nhất để truy vấn hạn mức một lần (thường đủ dùng khi các tài khoản chia sẻ cùng một gói;
+    khi có nhiều tài khoản với các gói khác nhau khuyến nghị nên truy vấn theo từng tài khoản)."""
     acc = store.pick_account(rotate=True)
     if not acc:
         raise HTTPException(400, "没有可用账号")
     return await query_quota(acc["id"], _)
 
 
-# ------------------------- 管理：接入信息 / API Key -------------------------
+# ------------------------- Quản trị: Thông tin kết nối / API Key (Admin Access Info) -------------------------
 def _public_base() -> str:
     return (CFG.public_base or "").rstrip("/")
 
@@ -1852,7 +1852,7 @@ def get_apikey(_=Depends(auth)):
 
 @app.post("/admin/apikey/rotate")
 def rotate_apikey(_=Depends(auth)):
-    """生成新的 API Key，写入 .env 并立即生效（不用重启）。"""
+    """Tạo API Key mới, ghi vào file .env và có hiệu lực ngay lập tức (không cần khởi động lại dịch vụ)."""
     import secrets
     new_key = "m2a_" + secrets.token_hex(24)
     old = CFG.api_key
@@ -1863,7 +1863,7 @@ def rotate_apikey(_=Depends(auth)):
 
 
 def _persist_env(key: str, value: str):
-    """把配置写回 .env（保留其它行，原子替换）。"""
+    """Ghi cấu hình trở lại file .env (giữ nguyên các dòng khác, thay thế nguyên tử)."""
     path = os.path.join(CFG.base_dir, ".env")
     try:
         with open(path, encoding="utf-8") as f:
@@ -1883,10 +1883,10 @@ def _persist_env(key: str, value: str):
     os.replace(tmp, path)
 
 
-# ------------------------- 管理：Cookie 获取 -------------------------
+# ------------------------- Quản trị: Lấy Cookie (Admin Cookie Import Tools) -------------------------
 @app.get("/admin/cookie-helper")
 def cookie_helper(download: int = 0):
-    """返回本机取 cookie 的助手脚本（进阶方式，需要装 Python）。"""
+    """Trả về file script trợ giúp lấy cookie trên máy cục bộ (cách nâng cao, yêu cầu môi trường Python)."""
     p = os.path.join(BASE_DIR, "tools", "get_muse_cookie.py")
     if not os.path.isfile(p):
         raise HTTPException(404, "助手脚本缺失")
@@ -1898,9 +1898,9 @@ def cookie_helper(download: int = 0):
 
 @app.get("/admin/extension")
 def extension_zip():
-    """把浏览器扩展打包成 zip 返回（推荐方式，零命令行）。
+    """Đóng gói tiện ích mở rộng trình duyệt thành file zip trả về (cách khuyến nghị, không cần dòng lệnh).
 
-    用户下载后解压 → chrome://extensions 开发者模式加载 → 点一下就导入 cookie。
+    Người dùng tải về giải nén → chrome://extensions tải ở chế độ Developer mode → nhấp một lần để nhập cookie.
     """
     src = os.path.join(BASE_DIR, "extension")
     if not os.path.isdir(src):
@@ -1924,7 +1924,7 @@ def extension_zip():
 
 @app.get("/admin/extension/files")
 def extension_files():
-    """列出扩展目录内容（前端展示用）。"""
+    """Liệt kê danh sách tệp trong thư mục extension (dùng cho hiển thị frontend)."""
     src = os.path.join(BASE_DIR, "extension")
     if not os.path.isdir(src):
         raise HTTPException(404, "扩展目录缺失")
@@ -1937,7 +1937,7 @@ def extension_files():
     return {"files": sorted(files)}
 
 
-# ------------------------- 管理：任务 / 媒体 -------------------------
+# ------------------------- Quản trị: Nhiệm vụ / Tệp đa phương tiện (Admin Tasks & Media) -------------------------
 @app.get("/admin/tasks")
 def admin_tasks(limit: int = 50, _=Depends(auth)):
     return {"tasks": store.list_tasks(limit)}
@@ -2010,7 +2010,7 @@ def delete_single_media(name: str, _=Depends(auth)):
         raise HTTPException(500, f"删除失败: {e}")
 
 
-# ------------------------- 前端页面 -------------------------
+# ------------------------- Trang giao diện Frontend (Frontend UI Pages) -------------------------
 def _admin_html() -> str:
     p = os.path.join(BASE_DIR, "admin.html")
     try:
@@ -2035,7 +2035,7 @@ def admin_page():
 
 
 
-# ------------------------- 账号自动保活与静默续期 -------------------------
+# ------------------------- Tự động Giữ phiên và Gia hạn Ngầm (Keepalive & Auto Renewal) -------------------------
 KEEPALIVE_LOCK = asyncio.Lock()
 KEEPALIVE_STATE = {
     "running": False,
@@ -2046,7 +2046,7 @@ KEEPALIVE_STATE = {
 
 
 def _probe_account_sync(aid: str, check_quota: bool = False) -> dict:
-    """通过 muse.ai/api/session 触发 Meta 网关签发新 hatch_vml (+48h) / hatch_sess (+30d) 并唤醒云端 VM。"""
+    """Gọi muse.ai/api/session để kích hoạt Meta gateway cấp phát hatch_vml (+48h) và hatch_sess (+30d) mới đồng thời đánh thức VM đám mây."""
     acc = store.get_account(aid)
     if not acc or not acc.get("cookies"):
         return {"ok": False, "id": aid, "label": (acc or {}).get("label", aid), "error": "账号无有效 cookie"}
@@ -2095,7 +2095,7 @@ def _probe_account_sync(aid: str, check_quota: bool = False) -> dict:
 
 
 async def run_keepalive_all(force: bool = False) -> dict:
-    """执行账号保活：force=True 时强制刷新所有启用账号，否则刷新临期/未检账号并保持 VM 热备。"""
+    """Thực thi giữ phiên tài khoản: khi force=True bắt buộc làm mới toàn bộ tài khoản đang bật, ngược lại chỉ làm mới các tài khoản sắp hết hạn / chưa kiểm tra và duy trì VM ở trạng thái sẵn sàng."""
     async with KEEPALIVE_LOCK:
         now = int(time.time())
         KEEPALIVE_STATE["running"] = True
@@ -2144,7 +2144,7 @@ async def run_keepalive_all(force: bool = False) -> dict:
 
 
 def _warmup_browser_sync():
-    """后台静默预热浏览器与首个可用账号的 WebSocket 隧道，使重启后首条请求也秒回。"""
+    """Chạy ngầm làm ấm trước trình duyệt và đường truyền WebSocket với tài khoản khả dụng đầu tiên, giúp yêu cầu đầu tiên sau khi khởi động lại dịch vụ cũng phản hồi nhanh trong 2-3s."""
     if getattr(engine, "current_acc_id", None) and engine.page is not None:
         return
     if not GEN_LOCK.acquire(blocking=False):
@@ -2160,7 +2160,7 @@ def _warmup_browser_sync():
     except Exception as exc:  # noqa: BLE001
         log.warning("【浏览器预热】预热异常: %s", exc)
     finally:
-        # Warmup runs in a worker thread; do not retain its account reservation or page.
+        # Quá trình làm ấm chạy trong worker thread; không giữ chỗ tài khoản hay trang của nó.
         engine.close_current_page()
         if acc:
             ACCOUNT_POOL.release(acc["id"])
@@ -2168,7 +2168,7 @@ def _warmup_browser_sync():
 
 
 async def _keepalive_loop():
-    """后台常驻守护任务：每 15 分钟轮询一次账号健康状态并保持 VM 热备。"""
+    """Tác vụ daemon chạy nền thường trực: Định kỳ mỗi 15 phút quét kiểm tra tình trạng tài khoản một lần và duy trì VM ở trạng thái sẵn sàng."""
     log.info("【自动保活守护进程】已启动，检测周期: 15 分钟")
     await asyncio.sleep(1)
     try:
@@ -2185,7 +2185,7 @@ async def _keepalive_loop():
 
 @app.post("/admin/accounts/keepalive")
 async def trigger_keepalive_all(force: bool = True, _=Depends(auth)):
-    """管理员手动触发一次全账号保活续期。"""
+    """Quản trị viên kích hoạt thủ công một đợt giữ phiên và gia hạn cho toàn bộ tài khoản."""
     if KEEPALIVE_STATE["running"]:
         return {"status": "busy", "message": "保活任务正在执行中，请稍候"}
     return await run_keepalive_all(force=force)
@@ -2193,17 +2193,17 @@ async def trigger_keepalive_all(force: bool = True, _=Depends(auth)):
 
 @app.post("/admin/accounts/{aid}/keepalive")
 async def trigger_keepalive_single(aid: str, _=Depends(auth)):
-    """手动针对单个账号执行保活续期。"""
+    """Thực hiện giữ phiên và gia hạn thủ công cho một tài khoản cụ thể."""
     return await asyncio.to_thread(_probe_account_sync, aid, False)
 
 
 @app.get("/admin/keepalive/status")
 def get_keepalive_status(_=Depends(auth)):
-    """获取保活守护协程状态。"""
+    """Lấy trạng thái của coroutine daemon giữ phiên."""
     return KEEPALIVE_STATE
 
 
-# ------------------------- 仓库实时更新检测、通知与一键在线升级 -------------------------
+# ------------------------- Kiểm tra Cập nhật, Thông báo & Nâng cấp Trực tuyến (OTA Updates) -------------------------
 REPO_URL = "https://github.com/czg86389-hub/muse2api"
 TRACKED_REPO_PATHS = [
     "app.py", "engine.py", "store.py", "cdp.py", "config.py",
@@ -2261,7 +2261,7 @@ def _git(args: list[str], timeout: int = 30):
 
 
 def _ensure_git_repo(token: str = ""):
-    """确保 BASE_DIR 已初始化为绑定 czg86389-hub/muse2api 的 Git 仓库。"""
+    """Đảm bảo BASE_DIR đã được khởi tạo và liên kết tới Git repository czg86389-hub/muse2api."""
     git_dir = os.path.join(BASE_DIR, ".git")
     remote_url = f"https://x-access-token:{token}@github.com/czg86389-hub/muse2api.git" if token else f"{REPO_URL}.git"
     if not os.path.isdir(git_dir):
@@ -2276,8 +2276,8 @@ def _ensure_git_repo(token: str = ""):
 
 
 def _check_update_sync(force: bool = False) -> dict:
-    """检测 GitHub 官方仓库 (czg86389-hub/muse2api) 是否有新版本或新提交。
-    默认缓存 90 秒，防止频繁刷新触发 GitHub API 速率限制。"""
+    """Kiểm tra repository GitHub chính thức (czg86389-hub/muse2api) xem có phiên bản hoặc commit mới hay không.
+    Mặc định lưu cache 90 giây để ngăn chặn việc làm mới liên tục kích hoạt giới hạn tốc độ của GitHub API."""
     now = time.time()
     if not force and _UPDATE_CACHE["data"] and (now - _UPDATE_CACHE["ts"]) < 90:
         return _UPDATE_CACHE["data"]
@@ -2323,7 +2323,7 @@ def _check_update_sync(force: bool = False) -> dict:
                 remote_version = str(rvj.get("version") or remote_version)
                 if rvj.get("highlights"):
                     highlights = list(rvj["highlights"])
-                    # 远端没有英文版时，仅在版本相同时沿用本地英文说明，否则界面回退显示中文
+                    # Khi phía remote không có bản tiếng Anh, chỉ giữ nguyên mô tả tiếng Anh cục bộ nếu cùng phiên bản, ngược lại fallback hiển thị tiếng Trung
                     highlights_en = list(rvj.get("highlights_en")
                                          or (highlights_en if remote_version == local_version else []))
     except Exception:
@@ -2360,7 +2360,7 @@ def _check_update_sync(force: bool = False) -> dict:
     except Exception:
         pass
 
-    # 若用户通过 Docker/ZIP 部署（无 .git）且首次运行版本一致，记录初始基准 SHA
+    # Nếu người dùng triển khai qua Docker/ZIP (không có thư mục .git) và phiên bản chạy lần đầu khớp nhau, ghi lại SHA mốc ban đầu
     if not local_sha and remote_sha and local_version == remote_version:
         local_sha = remote_sha
         try:
@@ -2405,7 +2405,7 @@ def _check_update_sync(force: bool = False) -> dict:
 
 
 def _upgrade_from_github_sync() -> dict:
-    """从 GitHub 拉取最新代码覆盖核心文件（兼容 Git 与无 Git 的 Docker/ZIP 环境），绝不触碰 .env 与 data/。"""
+    """Kéo mã nguồn mới nhất từ GitHub ghi đè lên các tệp lõi (tương thích cả Git và môi trường Docker/ZIP không có Git), tuyệt đối không đụng tới .env và data/."""
     import requests
     import tarfile
 
@@ -2470,14 +2470,14 @@ def _upgrade_from_github_sync() -> dict:
 @app.get("/admin/update/check")
 @app.get("/admin/repo/status")
 async def admin_check_update(force: bool = False):
-    """供所有已部署节点实时检测 GitHub 官方仓库是否有新版本更新。"""
+    """Cung cấp cho các node đã triển khai khả năng kiểm tra thời gian thực xem GitHub repo có bản cập nhật mới không."""
     return await asyncio.to_thread(_check_update_sync, force)
 
 
 @app.post("/admin/update/upgrade")
 @app.post("/admin/repo/pull")
 async def admin_upgrade_now(payload: dict = Body(default={}), _=Depends(auth)):
-    """一键从 GitHub 官方仓库拉取最新更新并自动平滑重启服务。"""
+    """Kéo bản cập nhật mới nhất từ GitHub repo chính thức và tự động khởi động lại dịch vụ an toàn."""
     res = await asyncio.to_thread(_upgrade_from_github_sync)
     restart = payload.get("restart", True) if isinstance(payload, dict) else True
     if restart:
@@ -2494,7 +2494,7 @@ async def admin_upgrade_now(payload: dict = Body(default={}), _=Depends(auth)):
 
 @app.post("/admin/repo/push")
 async def admin_repo_push(payload: dict = Body(default={}), _=Depends(auth)):
-    """维护者专用：将当前节点核心代码推送到 GitHub 仓库（自动过滤 .env 与 data 目录）。"""
+    """Dành riêng cho người bảo trì: Đẩy mã nguồn lõi của node hiện tại lên GitHub repo (tự động loại trừ thư mục .env và data)."""
     msg = (payload.get("message") or "").strip() or f"chore: sync update ({time.strftime('%Y-%m-%d %H:%M:%S')})"
     new_token = (payload.get("github_token") or "").strip()
     if new_token:

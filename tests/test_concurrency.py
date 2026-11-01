@@ -1,4 +1,4 @@
-"""测试多账号并发调度器与隔离能力。"""
+"""Kiểm thử bộ điều phối đồng thời đa tài khoản và năng lực cô lập."""
 import os
 import sys
 import threading
@@ -7,7 +7,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-# 确保导入当前目录下的 muse2api
+# Đảm bảo import muse2api từ thư mục hiện tại
 root = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(root))
 
@@ -20,22 +20,22 @@ def test_concurrency_lock():
     lock = app.ConcurrencyLock(limit=2)
     assert not lock.locked()
 
-    # 第一个槽位
+    # Slot đầu tiên
     assert lock.acquire(timeout=0.1)
     assert lock.locked()
 
-    # 第二个槽位（并发 = 2）
+    # Slot thứ hai (concurrency = 2)
     assert lock.acquire(timeout=0.1)
     assert lock.locked()
 
-    # 第三个槽位应超时
+    # Slot thứ ba sẽ bị timeout
     assert not lock.acquire(blocking=True, timeout=0.05)
 
-    # 释放一个槽位
+    # Giải phóng một slot
     lock.release()
     assert lock.locked()
 
-    # 现在第三个可以获取了
+    # Bây giờ slot thứ ba đã có thể nhận được
     assert lock.acquire(timeout=0.1)
 
     lock.release()
@@ -59,17 +59,17 @@ def test_account_pool_manager():
 
     pool = app.AccountPoolManager(dummy_store)
 
-    # 线程 1 占用 acc-1
+    # Luồng 1 chiếm dụng acc-1
     a1 = pool.acquire(timeout=0.5)
     assert a1["id"] == "acc-1"
     assert "acc-1" in pool.busy_accounts
 
-    # 线程 2 并发占用 acc-2（自动避开忙碌的 acc-1）
+    # Luồng 2 chiếm dụng đồng thời acc-2 (tự động tránh acc-1 đang bận)
     a2 = pool.acquire(timeout=0.5)
     assert a2["id"] == "acc-2"
     assert "acc-2" in pool.busy_accounts
 
-    # 此时两个账号都忙，线程 3 应等待并超时
+    # Lúc này cả hai tài khoản đều bận, luồng 3 phải chờ và bị timeout
     t0 = time.monotonic()
     try:
         pool.acquire(timeout=0.1)
@@ -78,14 +78,14 @@ def test_account_pool_manager():
         pass
     assert time.monotonic() - t0 >= 0.08
 
-    # 释放 acc-1 后，线程 3 能够立刻拿到 acc-1
+    # Sau khi giải phóng acc-1, luồng 3 lập tức nhận được acc-1
     pool.release(a1["id"])
     assert "acc-1" not in pool.busy_accounts
 
     a3 = pool.acquire(timeout=0.5)
     assert a3["id"] == "acc-1"
 
-    # 清理释放
+    # Dọn dẹp và giải phóng
     pool.release(a2["id"])
     pool.release(a3["id"])
     assert len(pool.busy_accounts) == 0
@@ -93,7 +93,7 @@ def test_account_pool_manager():
 
 
 def test_parallel_generation_simulation():
-    """模拟两个请求使用不同账号并发执行生成。"""
+    """Giả lập hai yêu cầu sử dụng các tài khoản khác nhau thực thi tạo nội dung đồng thời."""
     dummy_accounts = [
         {"id": "acc-1", "label": "A1", "enabled": True, "cookies": {"c": "1"}},
         {"id": "acc-2", "label": "A2", "enabled": True, "cookies": {"c": "2"}},

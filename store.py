@@ -1,4 +1,4 @@
-"""账号池与任务存储（JSON 落盘，原子写） (Account Pool & Task Store with Atomic JSON Persistence).
+"""Hồ chứa tài khoản và lưu trữ nhiệm vụ (Lưu trữ JSON, ghi tệp nguyên tử) (Account Pool & Task Store with Atomic JSON Persistence).
 
 Module này đảm nhiệm:
   - Quản lý danh sách tài khoản muse.ai (Account Pool) và trạng thái phiên đăng nhập.
@@ -19,7 +19,7 @@ import uuid
 # Khóa đồng bộ hóa toàn cục đảm bảo an toàn truy cập file và danh sách đa luồng
 _LOCK = threading.Lock()
 
-# 决定账号生死的核心 cookie（与 engine.ESSENTIAL_COOKIES 保持一致）
+# Cookie cốt lõi quyết định trạng thái tài khoản (đồng bộ nhất quán với engine.ESSENTIAL_COOKIES)
 # Các cookie cốt lõi quyết định phiên sống còn của tài khoản muse.ai:
 # - hatch_sess: Cookie phiên làm việc chính (thời hạn ~30 ngày).
 # - hatch_vml: Cookie máy ảo/container làm việc (thời hạn cố định ~48 giờ, không tự động tăng khi dùng).
@@ -43,7 +43,7 @@ def _is_pos(v) -> bool:
         return False
 
 
-# hatch_vml 固定约 2 天，且不因使用而延长 —— 它就是决定账号寿命的那条 cookie。
+# hatch_vml cố định khoảng 2 ngày và không được gia hạn thêm khi sử dụng — đây chính là cookie quyết định vòng đời tài khoản.
 # Thời hạn sống mặc định của hatch_vml: 2 ngày (tính bằng giây).
 # Khi không đọc được expires trực tiếp từ trình duyệt, hệ thống sẽ ước lượng bằng: thời điểm import + 2 ngày.
 VML_TTL = 2 * 86400
@@ -215,7 +215,7 @@ class Store:
             item["cookie_count"] = len(a.get("cookies", {}))
             item["essential_ok"] = all(
                 a.get("cookies", {}).get(n) for n in ESSENTIAL_COOKIES)
-            # 有效期是 hatch_vml 的实测 expires，还是按「2 天寿命」推算的
+            # Thời hạn hiệu lực là expires đo được thực tế của hatch_vml, hay được ước lượng theo "vòng đời 2 ngày"
             item["expires_estimated"] = not _is_pos(ce.get("hatch_vml"))
             out.append(item)
         return out
@@ -272,8 +272,7 @@ class Store:
                 if available:
                     live = available
                 elif exclude_ids is not None:
-                    # 并发模式下要求避开所有繁忙账号，但当前无剩余空闲账号
-                    # Ở chế độ đa luồng yêu cầu tránh toàn bộ tài khoản bận, nhưng hiện không còn tài khoản trống
+                    # Trong chế độ đồng thời yêu cầu tránh toàn bộ tài khoản bận, nhưng hiện không còn tài khoản trống
                     return None
                 elif len(live) > 1:
                     live = [a for a in live if a["id"] != exclude_id] or live
