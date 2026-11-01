@@ -1,0 +1,107 @@
+site_name: MUSE2API Documentation
+site_description: Hệ thống tài liệu kỹ thuật toàn diện cho dự án MUSE2API
+site_author: MUSE2API Contributors
+site_url: https://czg86389-hub.github.io/muse2api/
+
+repo_name: czg86389-hub/muse2api
+repo_url: https://github.com/czg86389-hub/muse2api
+
+docs_dir: docs
+
+theme:
+  name: material
+  language: vi
+  palette:
+    - scheme: default
+      primary: teal
+      accent: deep orange
+      toggle:
+        icon: material/brightness-7
+        name: Chuyển sang giao diện tối
+    - scheme: slate
+      primary: teal
+      accent: deep orange
+      toggle:
+        icon: material/brightness-4
+        name: Chuyển sang giao diện sáng
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - content.code.copy
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+  - attr_list
+  - def_list
+
+nav:
+  - Trang chủ: README.md
+  - 01. Tổng quan:
+      - Giới thiệu: 01-tong-quan/gioi-thieu.md
+      - Kiến trúc: 01-tong-quan/kien-truc.md
+      - Cấu trúc thư mục: 01-tong-quan/cau-truc-thu-muc.md
+      - Công nghệ: 01-tong-quan/cong-nghe.md
+  - 02. Cài đặt:
+      - Yêu cầu hệ thống: 02-cai-dat/yeu-cau-he-thong.md
+      - Hướng dẫn cài đặt: 02-cai-dat/huong-dan-cai-dat.md
+      - Cấu hình (.env): 02-cai-dat/cau-hinh.md
+      - Chạy & Vận hành: 02-cai-dat/chay-du-an.md
+  - 03. Phân tích Module:
+      - App & API Server: 03-module/app-api.md
+      - Động cơ Tự động hóa: 03-module/engine-core.md
+      - Giao thức CDP: 03-module/cdp-driver.md
+      - Lưu trữ & Hồ chứa: 03-module/store-storage.md
+      - Cấu hình: 03-module/config-env.md
+      - Công cụ Tools: 03-module/tools-helpers.md
+      - Chrome Extension: 03-module/chrome-extension.md
+  - 04. Chi tiết Mã nguồn:
+      - app.py: 04-chi-tiet-ma-nguon/app-py.md
+      - engine.py: 04-chi-tiet-ma-nguon/engine-py.md
+      - cdp.py: 04-chi-tiet-ma-nguon/cdp-py.md
+      - store.py: 04-chi-tiet-ma-nguon/store-py.md
+      - config.py: 04-chi-tiet-ma-nguon/config-py.md
+      - tools/get_muse_cookie.py: 04-chi-tiet-ma-nguon/tools-get-muse-cookie-py.md
+      - tools/mailtm_otp.py: 04-chi-tiet-ma-nguon/tools-mailtm-otp-py.md
+      - tools/verify_engine_selectors.py: 04-chi-tiet-ma-nguon/tools-verify-engine-selectors-py.md
+      - tools/userscript.js: 04-chi-tiet-ma-nguon/tools-userscript.md
+      - extension/popup.js: 04-chi-tiet-ma-nguon/extension-popup-js.md
+  - 05. Sơ đồ Luồng Xử lý:
+      - Chat Streaming SSE: 05-luong-xu-ly/chat-streaming.md
+      - Văn bản sinh Ảnh: 05-luong-xu-ly/text-to-image.md
+      - Sửa ảnh Tham chiếu: 05-luong-xu-ly/image-to-image.md
+      - Sinh Video Bất đồng bộ: 05-luong-xu-ly/video-generation.md
+      - Duy trì Phiên & Wake VM: 05-luong-xu-ly/session-keepalive.md
+      - Đồng bộ Cookie: 05-luong-xu-ly/cookie-import.md
+  - 06. Tài liệu API:
+      - Tổng quan API: 06-api/tong-quan-api.md
+      - Chat Completions: 06-api/chat-completions.md
+      - Responses (Codex): 06-api/responses-codex.md
+      - Images (Generations & Edits): 06-api/images-generations-edits.md
+      - Videos: 06-api/videos-generations.md
+      - Admin Management: 06-api/admin-management-api.md
+  - 07. Hướng dẫn Phát triển:
+      - Quy chuẩn Code: 07-huong-dan-phat-trien/coding-convention.md
+      - Quy trình Đóng góp: 07-huong-dan-phat-trien/quy-trinh-dong-gop.md
+      - Kiểm thử: 07-huong-dan-phat-trien/kiem-thu.md
+  - 08. Phụ lục:
+      - Bảng thuật ngữ: 08-phu-luc/thuat-ngu.md
+      - Câu hỏi thường gặp (FAQ): 08-phu-luc/faq.md
+      - Đề xuất cải tiến: 08-phu-luc/de-xuat-cai-tien.md

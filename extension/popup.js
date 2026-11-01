@@ -1,9 +1,14 @@
-/* Muse2API Cookie 导入 —— 读取 muse.ai 的 cookie 并 POST 到 muse2api 服务。
- *
- * 关键点：用 chrome.cookies 而不是 document.cookie。
- * muse.ai 的关键会话 cookie（hatch_sess / hatch_vml）带 httpOnly，
- * 网页 JS 读不到，只有浏览器扩展的 cookies 接口能拿到。
- * hatch_gw 是可重新签发的路由缓存，不应阻止账号导入。
+/**
+ * @file popup.js
+ * @description Logic điều khiển giao diện Popup của Chrome Extension Muse2API.
+ * 
+ * Mục đích:
+ *   Trích xuất trạng thái đăng nhập (Cookies) của muse.ai trong trình duyệt hiện tại
+ *   và gửi HTTP POST đồng bộ sang máy chủ backend muse2api.
+ * 
+ * Điểm mấu chốt:
+ *   Sử dụng chrome.cookies API thay vì document.cookie vì các cookie phiên cốt lõi
+ *   (hatch_sess, hatch_vml) mang cờ httpOnly. Chỉ có extension permissions mới đọc được.
  */
 
 const $ = (id) => document.getElementById(id);
@@ -13,18 +18,23 @@ const ESSENTIAL = ['hatch_sess', 'hatch_vml'];
 
 /* ================= 界面语言 / UI language =================
  * 中文是源语言；英文通过下面的词典替换。
- * 新增中文文案时，请在 I18N_EN（整句，可含 {name} 占位符）或 I18N_EN_PATTERNS（服务端返回的含变量文案）里补上英文。 */
+ * Hỗ trợ đa ngôn ngữ (Tiếng Trung và Tiếng Anh). */
 const LANG_STORE = 'muse2api_lang';
 const LANG = (() => {
   try { const v = localStorage.getItem(LANG_STORE); if (v === 'zh' || v === 'en') return v; } catch (e) {}
   return /^zh\b/i.test(navigator.language || '') ? 'zh' : 'en';
 })();
+
+/**
+ * Thiết lập ngôn ngữ giao diện và nạp lại popup.
+ * @param {string} v - Mã ngôn ngữ ('zh' hoặc 'en').
+ */
 function setLang(v) {
   try { localStorage.setItem(LANG_STORE, v); } catch (e) {}
   location.reload();
 }
 
-/* 整句：中文 → 英文 */
+/* 整句：中文 → 英文 / Bảng tra dịch thuật câu hoàn chỉnh */
 const I18N_EN = {
   // popup.html 静态文案
   'Muse2API Cookie 导入': 'Muse2API Cookie Import',
@@ -75,6 +85,12 @@ const I18N_EN_PATTERNS = [
   [/^缺少核心 cookie：(.*)，该账号可能无法生成$/s, 'Missing core cookies: $1; this account may not be able to generate'],
 ];
 
+/**
+ * Hàm dịch chuỗi i18n hỗ trợ thay thế biến định dạng {varName}.
+ * @param {string} s - Chuỗi nguồn cần dịch.
+ * @param {Object} [vars] - Object chứa các cặp key-value thay thế.
+ * @returns {string} Chuỗi sau khi được dịch và điền biến.
+ */
 function t(s, vars) {
   let out = s;
   if (LANG === 'en' && typeof s === 'string') {
@@ -85,6 +101,9 @@ function t(s, vars) {
   return out;
 }
 
+/**
+ * Cập nhật ngôn ngữ cho các phần tử DOM trong popup.html.
+ */
 function applyLang() {
   $('langSel').value = LANG;
   if (LANG !== 'en') return;
@@ -102,13 +121,22 @@ function applyLang() {
   });
 }
 
+/**
+ * Hiển thị thông báo log trạng thái lên giao diện popup.
+ * @param {string} html - Nội dung HTML hoặc chuỗi văn bản cần hiển thị.
+ * @param {string} [cls] - Tên class CSS áp dụng ('ok', 'bad', 'warn').
+ */
 function log(html, cls) {
   const el = $('log');
   el.className = 'show';
   el.innerHTML = cls ? `<span class="${cls}">${html}</span>` : html;
 }
 
-/* 规范化服务地址：去掉结尾斜杠和 /v1 后缀 */
+/**
+ * Chuẩn hóa URL máy chủ muse2api (loại bỏ dấu gạch chéo cuối và hậu tố /v1).
+ * @param {string} v - URL đầu vào.
+ * @returns {string} URL đã chuẩn hóa.
+ */
 function normBase(v) {
   let s = (v || '').trim();
   if (!s) return '';
@@ -118,6 +146,9 @@ function normBase(v) {
   return s;
 }
 
+/**
+ * Nạp cấu hình đã lưu từ chrome.storage.local hoặc tự động phát hiện nếu tab hiện tại là trang Admin.
+ */
 async function loadCfg() {
   const o = await chrome.storage.local.get(STORE);
   const c = o[STORE] || {};
@@ -125,6 +156,7 @@ async function loadCfg() {
   if (c.key) $('key').value = c.key;
   if (c.label) $('label').value = c.label;
   // 没有配置过就尝试从当前标签页猜一个（用户在管理页上时）
+  // Nếu chưa cấu hình, thử đoán URL từ tab đang mở nếu người dùng đang ở trang quản trị Admin
   if (!c.base) {
     try {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -134,10 +166,13 @@ async function loadCfg() {
         const k = new URLSearchParams(u.search).get('key');
         if (k) $('key').value = k;
       }
-    } catch (e) { /* 忽略 */ }
+    } catch (e) { /* Bỏ qua lỗi */ }
   }
 }
 
+/**
+ * Lưu cấu hình dịch vụ vào bộ nhớ chrome.storage.local.
+ */
 async function saveCfg() {
   await chrome.storage.local.set({
     [STORE]: {
@@ -148,6 +183,10 @@ async function saveCfg() {
   });
 }
 
+/**
+ * Trích xuất toàn bộ cookies của domain muse.ai qua chrome.cookies API.
+ * @returns {Promise<{cookies: Object.<string, string>, expires: Object.<string, number>}>}
+ */
 async function grabCookies() {
   const all = await chrome.cookies.getAll({ domain: 'muse.ai' });
   const out = {}, exp = {};
@@ -160,6 +199,9 @@ async function grabCookies() {
   return { cookies: out, expires: exp };
 }
 
+/**
+ * Xử lý sự kiện nhấn nút "Đọc và nhập" (Read & Import).
+ */
 async function run() {
   const base = normBase($('base').value);
   const key = $('key').value.trim();
@@ -229,6 +271,7 @@ async function run() {
   }
 }
 
+// Khởi tạo giao diện
 applyLang();
 $('langSel').addEventListener('change', (e) => setLang(e.target.value));
 $('go').addEventListener('click', run);

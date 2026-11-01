@@ -1,13 +1,18 @@
 #!/usr/bin/env python3
-"""Mail.tm 临时邮箱：申请地址 + 轮询取验证码。
+"""Mail.tm 临时邮箱：申请地址 + 轮询取验证码 (Mail.tm Disposable Email & OTP Poller).
 
-用途：muse.ai 登录要邮箱验证码时，跑这个脚本拿到一个临时邮箱地址，
-      填进登录页，脚本会把收到的验证码打印出来。
+Mục đích:
+  Hỗ trợ quy trình tạo hoặc đăng nhập tài khoản muse.ai khi có yêu cầu nhập mã xác thực OTP qua email.
+  Script tự động đăng ký một hòm thư tạm thời trên Mail.tm, hiển thị địa chỉ để điền vào muse.ai,
+  sau đó chạy vòng lặp polling kiểm tra hòm thư đến và trích xuất mã số xác thực (4-8 số).
 
-零依赖（纯标准库）。用法：
-    python3 mailtm_otp.py                # 申请新地址并开始轮询
-    python3 mailtm_otp.py --addr a@b.c --pass xxx   # 复用已有地址
-    python3 mailtm_otp.py --timeout 600  # 轮询时长（秒），默认 900
+Đặc điểm:
+  Hoàn toàn không có phụ thuộc bên ngoài (chỉ sử dụng thư viện chuẩn của Python).
+
+Cách sử dụng:
+  python3 tools/mailtm_otp.py                          # Tạo email mới và bắt đầu lắng nghe OTP
+  python3 tools/mailtm_otp.py --addr a@b.c --pass xxx  # Tái sử dụng địa chỉ và mật khẩu cũ
+  python3 tools/mailtm_otp.py --timeout 600            # Thời gian timeout chờ (giây), mặc định 900s
 """
 import argparse, json, random, re, string, sys, time, urllib.request, urllib.error
 
@@ -15,7 +20,20 @@ API = "https://api.mail.tm"
 
 
 def req(path, method="GET", token=None, body=None):
-    """发一个请求，返回解析后的 JSON。"""
+    """Gửi yêu cầu HTTP tới Mail.tm REST API và giải mã dữ liệu JSON trả về.
+    
+    Args:
+        path (str): Endpoint API (ví dụ: '/accounts', '/token', '/messages').
+        method (str, optional): Phương thức HTTP ('GET', 'POST', ...). Mặc định là 'GET'.
+        token (str | None, optional): Bearer JWT token dùng để xác thực quyền truy cập.
+        body (dict | None, optional): Payload dữ liệu gửi kèm ở dạng JSON.
+        
+    Returns:
+        dict | list: Dữ liệu JSON phản hồi từ máy chủ.
+        
+    Raises:
+        SystemExit: Thoát chương trình nếu máy chủ trả về mã lỗi HTTP.
+    """
     data = json.dumps(body).encode() if body is not None else None
     r = urllib.request.Request(API + path, data=data, method=method)
     r.add_header("Content-Type", "application/json")
@@ -32,9 +50,13 @@ def req(path, method="GET", token=None, body=None):
 
 
 def new_account():
-    """申请一个新地址，返回 (address, password, token)。"""
+    """Tạo mới một tài khoản hòm thư ngẫu nhiên trên Mail.tm.
+    
+    Returns:
+        tuple[str, str, str]: Bộ ba gồm (địa chỉ email, mật khẩu tạo tự động, token JWT).
+    """
     d = req("/domains")
-    domains = d["hydra:member"] if isinstance(d, dict) else d  # 新版返回数组，旧版 hydra 包装
+    domains = d["hydra:member"] if isinstance(d, dict) else d  # Hỗ trợ cả định dạng mảng mới và hydra wrapper cũ
     domain = next(x["domain"] for x in domains if x.get("isActive", True))
     user = "".join(random.choices(string.ascii_lowercase + string.digits, k=12))
     addr, pwd = f"{user}@{domain}", "".join(random.choices(string.ascii_letters + string.digits, k=16))
@@ -44,16 +66,34 @@ def new_account():
 
 
 def login(addr, pwd):
+    """Đăng nhập vào hòm thư Mail.tm đã có sẵn để lấy token xác thực mới.
+    
+    Args:
+        addr (str): Địa chỉ email.
+        pwd (str): Mật khẩu tài khoản.
+        
+    Returns:
+        str: Chuỗi JWT token xác thực.
+    """
     return req("/token", "POST", body={"address": addr, "password": pwd})["token"]
 
 
+# Biểu thức chính quy phát hiện dãy 4 đến 8 chữ số độc lập (mã xác nhận OTP)
 CODE_RE = re.compile(r"(?<!\d)(\d{4,8})(?!\d)")
 
 
 def poll(token, timeout):
-    """轮询新邮件，发现验证码就打印。返回验证码或 None。"""
+    """Vòng lặp định kỳ truy vấn danh sách thư mới, trích xuất và hiển thị mã OTP.
+    
+    Args:
+        token (str): JWT token xác thực tài khoản email.
+        timeout (int): Thời gian chờ tối đa (tính theo giây).
+        
+    Returns:
+        str | None: Mã OTP phát hiện được hoặc None nếu hết thời gian chờ mà không có thư.
+    """
     seen, deadline = set(), time.time() + timeout
-    print(f"[*] 开始轮询收件箱（最多 {timeout}s，Ctrl-C 可停）\n")
+    print(f"[*] 开始轮询收件箱（最多 {timeout}s，Ctrl-C 可停）\n[*] Đang lắng nghe hộp thư đến (tối đa {timeout}s, nhấn Ctrl-C để hủy)...\n")
     while time.time() < deadline:
         try:
             r = req("/messages?page=1", token=token)
@@ -68,32 +108,34 @@ def poll(token, timeout):
             frm = (full.get("from") or {}).get("address", "?")
             subj = full.get("subject", "")
             body = full.get("text") or full.get("intro") or ""
-            print(f"[+] 新邮件  来自 {frm}\n    主题：{subj}")
+            print(f"[+] 新邮件 / Thư mới từ {frm}\n    Chủ đề: {subj}")
             codes = CODE_RE.findall(f"{subj}\n{body}")
-            print(f"    正文：{body.strip()[:500]}")
+            print(f"    Nội dung: {body.strip()[:500]}")
             if codes:
-                print(f"\n>>> 验证码：{codes[0]}\n")
+                print(f"\n>>> 验证码 (Mã OTP): {codes[0]}\n")
                 return codes[0]
-            print("    （未识别到验证码，继续等待…）\n")
+            print("    (Chưa tìm thấy mã OTP phù hợp, tiếp tục chờ...)\n")
         left = int(deadline - time.time())
-        print(f"    等待中… 剩余 {left}s", end="\r", flush=True)
+        print(f"    Đang chờ thư mới... Còn lại {left}s", end="\r", flush=True)
         time.sleep(3)
-    print("\n[!] 超时，未收到验证码。")
+    print("\n[!] 超时，未收到验证码。/ Hết thời gian chờ, không nhận được mã xác thực.")
     return None
 
 
 def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--addr"); ap.add_argument("--pass", dest="pwd")
-    ap.add_argument("--timeout", type=int, default=900)
+    """Hàm thực thi chính khi gọi script từ Command Line Interface (CLI)."""
+    ap = argparse.ArgumentParser(description="Tự động lấy mã OTP đăng nhập muse.ai từ mail.tm")
+    ap.add_argument("--addr", help="Tái sử dụng địa chỉ email đã có")
+    ap.add_argument("--pass", dest="pwd", help="Mật khẩu của email đã có")
+    ap.add_argument("--timeout", type=int, default=900, help="Thời gian chờ tối đa (giây)")
     a = ap.parse_args()
     if a.addr and a.pwd:
         addr, pwd, token = a.addr, a.pwd, login(a.addr, a.pwd)
-        print(f"[*] 复用已有地址：{addr}")
+        print(f"[*] Tái sử dụng hòm thư đã có: {addr}")
     else:
         addr, pwd, token = new_account()
-        print(f"[*] 已申请新地址：{addr}\n    密码：{pwd}（复用需带上）")
-    print(f"\n=== 把下面这个地址填进 muse.ai 登录页 ===\n    {addr}\n")
+        print(f"[*] Đã đăng ký hòm thư tạm mới: {addr}\n    Mật khẩu: {pwd} (lưu lại nếu muốn dùng tiếp)")
+    print(f"\n=== Sao chép địa chỉ sau điền vào trang đăng nhập muse.ai ===\n    {addr}\n")
     code = poll(token, a.timeout)
     sys.exit(0 if code else 1)
 
@@ -102,4 +144,4 @@ if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        print("\n[*] 已停止。")
+        print("\n[*] Đã dừng chương trình.")

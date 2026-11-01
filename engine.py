@@ -1,10 +1,17 @@
-"""Muse 生成引擎：用真实网页会话驱动 muse.ai 完成生图/生视频。
+"""Muse 生成引擎：用真实网页会话驱动 muse.ai 完成生图/生视频 (Muse Generation Engine Core).
 
-已验证流程：
-  注入 cookie -> 打开 https://muse.ai/ -> 定位 textarea(placeholder=消息)
-  -> Input.insertText 填入 -> 点「发送」
-  -> 等待新的附件容器 [data-testid^=hatch-chat-attachment-presentation-]
-  -> 从该容器内的 img/video 取 blob 字节 -> 落盘
+Module lõi chịu trách nhiệm tương tác và điều khiển trực tiếp phiên làm việc web muse.ai:
+  - Khởi tạo và quản lý vòng đời tiến trình vô đầu Chromium qua giao thức Chrome DevTools Protocol (CDP).
+  - Tách biệt ngữ cảnh đa tài khoản (Multi-Account Browser Context Isolation) bằng `Target.createBrowserContext`.
+  - Tự động duy trì phiên đăng nhập và kích hoạt máy ảo đám mây (`/api/session`, `/api/hatch/vm/wake`).
+  - Điều khiển giao diện web tự động: định vị composer textarea, inject văn bản, xử lý tải ảnh đính kèm (DataTransfer API).
+  - Lắng nghe và trích xuất kết quả đa phương tiện (ảnh hoàn thiện, video hoàn thiện) qua DOM mutation và Blob binary fetching.
+  - Hỗ trợ trò chuyện tương tác với khả năng stream thời gian thực (SSE tokens) với độ trễ phản hồi cực thấp (2-3s).
+
+Quy trình tự động hóa đã được kiểm chứng:
+  Bơm Cookie -> Mở https://muse.ai/ -> Định vị textarea -> Đặt giá trị văn bản -> Click 'Gửi'
+  -> Lắng nghe container kết quả [data-testid^=hatch-chat-attachment-presentation-]
+  -> Trích xuất dữ liệu Blob từ thẻ img/video -> Ghi file xuống đĩa.
 """
 from __future__ import annotations
 
@@ -43,19 +50,21 @@ ESSENTIAL_COOKIES = ("hatch_sess", "hatch_vml")
 
 
 class MuseAuthError(RuntimeError):
+    """Ngoại lệ khi xác thực tài khoản muse.ai thất bại (hết hạn session cookie hoặc bị logout)."""
     pass
 
 
 class MuseGenerationError(RuntimeError):
+    """Ngoại lệ chung trong quá trình điều khiển trình duyệt hoặc sinh nội dung tại muse.ai."""
     pass
 
 
 class MuseModelRefusalError(MuseGenerationError):
-    """Muse completed the turn with text instead of the requested media."""
+    """Ngoại lệ khi model muse.ai từ chối yêu cầu sinh ảnh/video và chỉ trả về văn bản từ chối (Policy Refusal)."""
 
 
 class RefImageSafetyError(MuseGenerationError):
-    """A reference image source is forbidden by the configured input policy."""
+    """Ngoại lệ vi phạm chính sách an toàn ảnh tham chiếu (ví dụ: cố tình truy cập dải IP nội bộ SSRF)."""
 
 
 class _RefImageHTTPHandler(urllib.request.HTTPHandler, urllib.request.HTTPSHandler):
@@ -89,7 +98,20 @@ class _NoRefImageRedirect(urllib.request.HTTPRedirectHandler):
 
 
 def _open_public_ref_image(url: str):
-    """Open one public HTTP(S) URL with DNS rebinding and redirect checks."""
+    """Mở một URL ảnh công khai HTTP(S) có kiểm tra chống tấn công DNS Rebinding và kiểm soát chuyển hướng.
+    
+    Phân giải địa chỉ IP của hostname và từ chối các dải IP nội bộ/riêng tư để ngăn chặn tấn công SSRF.
+    
+    Args:
+        url (str): Đường dẫn URL ảnh từ xa cần tải về.
+        
+    Returns:
+        HTTPResponse: Đối tượng phản hồi HTTP đã mở kết nối an toàn.
+        
+    Raises:
+        RefImageSafetyError: Nếu URL trỏ về IP nội bộ hoặc giao thức không hợp lệ.
+        urllib.error.URLError: Nếu quá số lần chuyển hướng cho phép (>10 lần) hoặc không phân giải được IP.
+    """
     for _ in range(11):
         parsed = urllib.parse.urlsplit(url)
         if parsed.scheme not in ("http", "https") or not parsed.hostname:
@@ -124,7 +146,18 @@ def _open_public_ref_image(url: str):
 
 
 class MuseEngine:
+    """Động cơ cốt lõi điều khiển trình duyệt vô đầu (Headless Chromium) để tương tác với muse.ai.
+    
+    Quản lý tiến trình Chromium, các kết nối WebSocket CDP, cô lập session theo luồng,
+    và điều khiển tự động toàn bộ luồng sinh ảnh, video và hội thoại.
+    """
+
     def __init__(self, cfg):
+        """Khởi tạo thể hiện MuseEngine với cấu hình hệ thống.
+        
+        Args:
+            cfg (Config): Cấu hình hệ thống (chứa cổng CDP, đường dẫn Chromium, thư mục data...).
+        """
         self.cfg = cfg
         self.proc: subprocess.Popen | None = None
         self.browser: CDP | None = None
@@ -172,6 +205,13 @@ class MuseEngine:
         return f"http://127.0.0.1:{self.cfg.cdp_port}/json/version"
 
     def start(self):
+        """Khởi chạy tiến trình trình duyệt Chromium nền với cờ Remote Debugging Port.
+        
+        Nếu phát hiện đã có tiến trình CDP đang chạy hợp lệ trên cổng chỉ định, hàm sẽ tự động tái sử dụng.
+        
+        Raises:
+            MuseGenerationError: Nếu không thể kết nối tới cổng gỡ lỗi CDP sau 90 giây thử lại.
+        """
         with self._start_lock:
             if self.proc and self.proc.poll() is None and self.browser:
                 return
@@ -226,6 +266,7 @@ class MuseEngine:
         raise MuseGenerationError(f"Chromium 启动失败: {last}")
 
     def stop(self):
+        """Dừng hoàn toàn engine, đóng các Incognito BrowserContext, ngắt kết nối WebSocket và hủy tiến trình Chromium."""
         with self._start_lock:
             self._close_page()
             if self.browser:
@@ -313,8 +354,25 @@ class MuseEngine:
     @staticmethod
     def renew_session_http(cookies: dict, expires: dict | None = None,
                            wake_vm: bool = True) -> dict:
-        """直接调用 muse.ai/api/session 续签 hatch_vml (+48h) / hatch_sess (+30d) / hatch_gw (+1y)，
-        并按需调用 /api/hatch/vm/wake 唤醒云端工作区 VM。"""
+        """Gia hạn phiên làm việc trực tiếp qua giao thức HTTP (không cần tải giao diện trang web).
+        
+        Gọi API nội bộ của muse.ai:
+          - GET `https://muse.ai/api/session` để gia hạn hatch_vml (+48h), hatch_sess (+30d), hatch_gw (+1y).
+          - POST `https://muse.ai/api/hatch/vm/wake` để đánh thức máy ảo container nếu vm_state chưa ở trạng thái RUNNING.
+          
+        Args:
+            cookies (dict): Dictionary chứa các cookie hiện tại.
+            expires (dict | None, optional): Dictionary chứa hạn dùng các cookie.
+            wake_vm (bool, optional): Có kích hoạt đánh thức VM hay không (mặc định: True).
+            
+        Returns:
+            dict: Kết quả trạng thái phiên, ID máy ảo (vm_id), trạng thái máy ảo (vm_state),
+                  và dictionary cookies/cookies_exp đã được cập nhật giá trị mới.
+                  
+        Raises:
+            MuseAuthError: Khi máy chủ trả về mã HTTP 401 (phiên đã hết hạn hoặc bị thu hồi).
+            MuseGenerationError: Khi gặp lỗi mạng hoặc HTTP status khác 200.
+        """
         import requests
         cur_cookies = dict(cookies or {})
         cur_exp = dict(expires or {})
@@ -507,6 +565,26 @@ class MuseEngine:
             pass
 
     def ensure_page(self, cookies: dict, expires: dict | None = None, account_id: str | None = None):
+        """Đảm bảo tab làm việc của luồng hiện tại đã được khởi tạo, nạp đúng Cookies và WebSocket sẵn sàng.
+        
+        Nếu tài khoản trùng khớp và tab đang khỏe (textarea tồn tại và đã hydrated), tab sẽ được tái sử dụng ngay.
+        Nếu cần đổi tài khoản hoặc mở tab mới:
+          - Tự động gọi renew_session_http để gia hạn trước nếu quá 10 phút.
+          - Mở Incognito BrowserContext độc lập, áp dụng cookie và điều hướng tới `/thread/new`.
+          - Chờ cho tới khi khung soạn thảo React hoàn thành kết nối WebSocket (`_wait_ws_ready`).
+          
+        Args:
+            cookies (dict): Danh sách cookies của tài khoản.
+            expires (dict | None, optional): Hạn dùng của các cookie.
+            account_id (str | None, optional): ID tài khoản cần gán cho ngữ cảnh này.
+            
+        Returns:
+            CDP: Đối tượng client CDP kết nối tới tab đã sẵn sàng.
+            
+        Raises:
+            MuseAuthError: Nếu trang web chuyển hướng về màn hình đăng nhập (bị logout).
+            MuseGenerationError: Nếu tải trang hoặc kết nối WebSocket quá hạn timeout.
+        """
         if self.page is not None and (account_id is None or getattr(self, "current_acc_id", None) == account_id):
             try:
                 if self.page.js("!!document.querySelector('textarea')") and self._wait_ws_ready(self.page, timeout=8.0):
@@ -639,7 +717,21 @@ class MuseEngine:
 
     def quota(self, cookies: dict, expires: dict | None = None,
               account_id: str | None = None) -> dict:
-        """Read one account's quota in a fresh, disposable browser context."""
+        """Tra cứu hạn mức và dung lượng sử dụng (Quota) của tài khoản trong một ngữ cảnh trình duyệt dùng 1 lần (disposable).
+        
+        Mở menu Settings -> Chọn mục Settings -> Đọc nội dung hộp thoại hiển thị dung lượng tuần (Usage) và gói cước.
+        
+        Args:
+            cookies (dict): Cookies của tài khoản cần kiểm tra.
+            expires (dict | None, optional): Hạn dùng của cookies.
+            account_id (str | None, optional): ID của tài khoản.
+            
+        Returns:
+            dict: Thông tin gói cước (plan), tỉ lệ phần trăm đã dùng (% used), ngày reset tuần, token còn lại...
+            
+        Raises:
+            MuseGenerationError: Nếu không tìm thấy nút Settings hoặc không đọc được bảng Usage sau timeout.
+        """
         # Muse's Settings menu can remain in a half-closed React state after a read.
         # A disposable context is slower, but prevents consecutive reads from
         # inheriting stale UI and keeps account cookies strictly isolated.
@@ -773,8 +865,26 @@ class MuseEngine:
         "return JSON.stringify({v:ta?ta.value:'',btn:b?(b.disabled?2:1):0});})()"
     )
 
-    def _send(self, prompt: str):
-        # 1. 确保 textarea 滚动到视口中央并获得真实焦点
+    def _send(self, prompt: str) -> str:
+        """Điền câu lệnh / câu nhắc (prompt) vào textarea và kích hoạt hành động gửi tin nhắn.
+        
+        Cơ chế:
+          1. Cuộn textarea vào trung tâm màn hình và phát sự kiện click chuột trái để nhận tiêu điểm (focus).
+          2. Sử dụng setter nguyên mẫu `HTMLTextAreaElement.prototype.value` để cập nhật trạng thái trong React 18,
+             kèm phát sự kiện 'input' và 'change' (tốc độ <1s ngay cả với văn bản siêu dài >100KB).
+          3. Tìm và click nút Send khi chuyển sang trạng thái kích hoạt (enabled). Nếu nút không xuất hiện,
+             dùng cơ chế fallback phát phím tắt Ctrl+Enter và Enter.
+             
+        Args:
+            prompt (str): Nội dung câu nhắc người dùng muốn gửi.
+            
+        Returns:
+            str: Trạng thái kích hoạt thành công ('clicked' hoặc 'enter-sent').
+            
+        Raises:
+            MuseGenerationError: Nếu không tìm thấy phần tử textarea trên trang.
+        """
+        # 1. Cuộn textarea vào giữa viewport và kích hoạt focus thực tế
         try:
             self.page.js("""(function(){
                 var ta = document.querySelector('textarea');
@@ -883,6 +993,29 @@ class MuseEngine:
     def _wait_attachment(self, baseline_src: str, timeout: int, expect: str,
                          on_progress=None, base_agent_cnt: int = 0,
                          base_att_cnt: int = 0, stop_event=None, baseline_sources=None) -> dict | None:
+        """Vòng lặp lắng nghe tệp đính kèm kết quả mới (ảnh hoặc video) được sinh ra trong hội thoại.
+        
+        Theo dõi sự thay đổi của DOM, tự động cuộn trang xuống đáy để cập nhật danh sách ảo,
+        kiểm tra thuộc tính hình ảnh (w, h > 0) hoặc định dạng video (vSrc, thẻ video),
+        đồng thời phát hiện nhanh các tình huống model từ chối tạo nội dung (Model Refusal) để ngắt sớm.
+        
+        Args:
+            baseline_src (str): URL nguồn của attachment cuối cùng trước khi gửi prompt (để so sánh).
+            timeout (int): Thời gian chờ tối đa (giây).
+            expect (str): Loại định dạng mong muốn ('image' hoặc 'video').
+            on_progress (callable | None, optional): Callback thông báo phần trăm tiến độ sinh.
+            base_agent_cnt (int, optional): Số lượng bong bóng tin nhắn của bot trước khi gửi.
+            base_att_cnt (int, optional): Số lượng attachment trước khi gửi.
+            stop_event (threading.Event | None, optional): Cờ dừng sớm nếu client ngắt kết nối.
+            baseline_sources (set | None, optional): Tập hợp URL các attachment cũ cần loại trừ.
+            
+        Returns:
+            dict | None: Dictionary thông tin attachment mới được chọn hoặc None nếu quá hạn.
+            
+        Raises:
+            MuseGenerationError: Khi client ngắt kết nối hoặc lỗi sinh nghiêm trọng.
+            MuseModelRefusalError: Khi model muse.ai hoàn thành lượt trò chuyện bằng văn bản từ chối.
+        """
         baseline_sources = set(baseline_sources or ()) | {baseline_src}
         deadline = time.time() + timeout
         t_start = time.time()
@@ -1159,7 +1292,25 @@ class MuseEngine:
     def chat_stream(self, cookies: dict, prompt: str, expires: dict | None = None,
                     timeout: int | None = None, account_id: str | None = None,
                     stop_event=None):
-        """发一条消息，流式 yield 增量文本。"""
+        """Gửi tin nhắn văn bản và stream từng đoạn token phản hồi gia tăng (Generator Yield).
+        
+        Áp dụng thuật toán polling tần số cao (chu kỳ 60ms) để bắt ngay ký tự đầu tiên chỉ sau 2-3 giây.
+        Theo dõi trạng thái nút Stop để nhận biết thời điểm kết thúc sinh phản hồi của mô hình.
+        
+        Args:
+            cookies (dict): Cookies xác thực phiên tài khoản.
+            prompt (str): Câu lệnh hoặc chuỗi ngữ cảnh hội thoại cần gửi.
+            expires (dict | None, optional): Hạn dùng của cookies.
+            timeout (int | None, optional): Thời gian chờ phản hồi tối đa (giây).
+            account_id (str | None, optional): ID tài khoản được gán.
+            stop_event (threading.Event | None, optional): Cờ dừng nếu client hủy kết nối SSE.
+            
+        Yields:
+            str: Từng đoạn văn bản gia tăng (delta text) vừa xuất hiện.
+            
+        Raises:
+            MuseGenerationError: Nếu chờ ký tự đầu tiên hoặc hoàn thành phản hồi quá hạn timeout.
+        """
         timeout = int(timeout or getattr(self.cfg, "chat_timeout", 300))
         self.ensure_page(cookies, expires, account_id=account_id)
         self.reset_thread(for_chat=True)
@@ -1227,13 +1378,37 @@ class MuseEngine:
 
     def chat(self, cookies: dict, prompt: str, expires: dict | None = None,
              timeout: int | None = None, account_id: str | None = None) -> str:
-        """发一条消息，返回完整回复文本（非流式）。"""
+        """Gửi một tin nhắn và trả về toàn bộ chuỗi văn bản phản hồi hoàn chỉnh (chế độ đồng bộ non-streaming).
+        
+        Args:
+            cookies (dict): Cookies của tài khoản.
+            prompt (str): Câu nhắc cần gửi.
+            expires (dict | None, optional): Hạn dùng của cookies.
+            timeout (int | None, optional): Thời gian timeout (giây).
+            account_id (str | None, optional): ID tài khoản.
+            
+        Returns:
+            str: Toàn bộ nội dung văn bản trả lời của mô hình.
+        """
         out = ""
         for chunk in self.chat_stream(cookies, prompt, expires, timeout, account_id=account_id):
             out += chunk
         return out
 
     def extract_bytes(self, src: str, expect: str = "image", retries: int = 4):
+        """Trích xuất mảng byte dữ liệu nhị phân của ảnh/video trực tiếp từ DOM qua JavaScript Blob Fetch.
+        
+        Args:
+            src (str): URL nguồn hoặc định danh của phần tử đa phương tiện.
+            expect (str, optional): Loại định dạng mong đợi ('image' hoặc 'video').
+            retries (int, optional): Số lần thử lại tối đa nếu fetch chưa sẵn sàng (mặc định: 4).
+            
+        Returns:
+            tuple[bytes, str, str]: Bộ ba gồm (dữ liệu nhị phân byte, chuỗi MIME type, URL gốc).
+            
+        Raises:
+            MuseGenerationError: Nếu không thể giải mã hoặc lấy dữ liệu nhị phân sau số lần thử lại.
+        """
         last = "未知"
         for _ in range(retries):
             raw = self.page.js(self._EXTRACT_JS % (json.dumps(src), json.dumps(expect)),
@@ -1250,6 +1425,15 @@ class MuseEngine:
 
     # ---------------- 下载兜底 ----------------
     def _download_fallback(self, src: str, timeout: int = 180) -> str | None:
+        """Cơ chế dự phòng: Kích hoạt nút Tải xuống (Download) của phần tử trên giao diện và đón file trong thư mục downloads.
+        
+        Args:
+            src (str): URL nguồn của phần tử cần tải xuống.
+            timeout (int, optional): Thời gian chờ file xuất hiện hoàn tất (mặc định: 180 giây).
+            
+        Returns:
+            str | None: Đường dẫn file cục bộ đã tải về thành công hoặc None nếu thất bại.
+        """
         before = set(os.listdir(self.cfg.download_dir))
         # ponytail: fail closed when the selected result has no local download;
         # never click an unrelated/global button that can return the upload.
@@ -1279,7 +1463,20 @@ class MuseEngine:
         return None
 
     def _normalize_image(self, img: str) -> tuple[str, str]:
-        """Normalize one image and enforce source, MIME and size policy."""
+        """Chuẩn hóa dữ liệu ảnh tham chiếu và thực thi chính sách kiểm duyệt MIME type, kích thước và nguồn gốc.
+        
+        Hỗ trợ: Data URL base64, URL Internet công khai, chuỗi Base64 thô và đường dẫn file cục bộ (nếu bật cờ cho phép).
+        
+        Args:
+            img (str): Chuỗi đại diện cho ảnh (URL, Data URL, Base64 hoặc filepath).
+            
+        Returns:
+            tuple[str, str]: Cặp gồm (chuỗi Base64 đã chuẩn hóa, chuỗi MIME type như 'image/png').
+            
+        Raises:
+            MuseGenerationError: Nếu file không phải là ảnh, định dạng không hợp lệ hoặc vượt quá 10 MiB.
+            RefImageSafetyError: Nếu URL trỏ về mạng nội bộ hoặc cố tình đọc file cục bộ bị cấm.
+        """
         if not img:
             return "", "image/png"
         img = str(img).strip()
@@ -1363,7 +1560,14 @@ class MuseEngine:
             pass
 
     def _attach_images(self, image_data: list[str]):
-        """逐张附加参考图，并确认全部进入 composer。"""
+        """Bơm tuần tự các ảnh tham chiếu vào input file của khung soạn thảo và xác nhận đã hiển thị đầy đủ.
+        
+        Args:
+            image_data (list[str]): Danh sách ảnh tham chiếu (tối đa 4 ảnh, tổng dung lượng không quá 24 MiB).
+            
+        Raises:
+            MuseGenerationError: Nếu vượt quá số lượng, tổng dung lượng hoặc giao diện không xuất hiện nút xác nhận đính kèm.
+        """
         if len(image_data) > MAX_REFERENCE_IMAGES:
             raise MuseGenerationError(f"参考图最多 {MAX_REFERENCE_IMAGES} 张")
         images = []
@@ -1469,7 +1673,11 @@ class MuseEngine:
         time.sleep(0.5)
 
     def _attach_image(self, image_data: str):
-        """Backward-compatible single-reference wrapper."""
+        """Hàm bọc tương thích ngược hỗ trợ đính kèm 1 ảnh tham chiếu duy nhất.
+        
+        Args:
+            image_data (str): Dữ liệu ảnh tham chiếu đơn lẻ.
+        """
         self._attach_images([image_data])
     # ---------------- 主流程 ----------------
     def generate(self, cookies: dict, prompt: str, expect: str = "image",
@@ -1477,6 +1685,34 @@ class MuseEngine:
                  on_progress=None, reference_image: str | None = None,
                  reference_images: list[str] | None = None,
                  stop_event=None) -> dict:
+        """Quy trình toàn diện điều khiển sinh hình ảnh hoặc video trên giao diện web muse.ai.
+        
+        Trình tự các bước:
+          1. Đảm bảo tab trình duyệt sẵn sàng (`ensure_page`) và điều hướng về phiên sạch (`reset_thread`).
+          2. Nếu có ảnh tham chiếu: chuẩn hóa và inject vào composer (`_attach_images`); nếu không, xóa ảnh cũ (`_clear_attachments`).
+          3. Gửi câu nhắc (`_send`).
+          4. Chờ attachment kết quả mới xuất hiện (`_wait_attachment`).
+          5. Trích xuất mảng byte qua Blob (`extract_bytes`) hoặc fallback click Download (`_download_fallback`).
+          6. Lưu file vào thư mục `media_dir` với tên UUID duy nhất và trả về metadata chi tiết.
+          
+        Args:
+            cookies (dict): Danh sách cookies phiên tài khoản.
+            prompt (str): Câu lệnh miêu tả hình ảnh/video cần tạo.
+            expect (str, optional): Loại sản phẩm mong đợi ('image' hoặc 'video'). Mặc định là 'image'.
+            timeout (int, optional): Thời gian timeout tối đa cho toàn bộ tác vụ (giây).
+            expires (dict | None, optional): Hạn dùng của các cookie.
+            account_id (str | None, optional): ID tài khoản thực hiện.
+            on_progress (callable | None, optional): Callback nhận cập nhật tiến độ sinh nội dung.
+            reference_image (str | None, optional): Đường dẫn/URL một ảnh tham chiếu (tương thích cũ).
+            reference_images (list[str] | None, optional): Danh sách nhiều ảnh tham chiếu (tối đa 4 ảnh).
+            stop_event (threading.Event | None, optional): Cờ dừng sớm nếu client hủy yêu cầu.
+            
+        Returns:
+            dict: Thông tin sản phẩm hoàn thành gồm path, filename, size, ext, mime, kind, w, h...
+            
+        Raises:
+            MuseGenerationError: Khi gặp lỗi gửi prompt, timeout chờ attachment hoặc sai lệch loại media.
+        """
         deadline = time.monotonic() + timeout
         self.ensure_page(cookies, expires, account_id=account_id)
         self.reset_thread(for_chat=False)

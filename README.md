@@ -6,6 +6,7 @@
   <img src="https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker" alt="Docker" />
   <img src="https://img.shields.io/badge/API-OpenAI%20Compatible-green" alt="OpenAI API Compatible" />
   <img src="https://img.shields.io/badge/License-MIT-orange" alt="License" />
+  <a href="docs/README.md"><img src="https://img.shields.io/badge/Docs-Technical%20Documentation-blueviolet?logo=read-the-docs" alt="Docs" /></a>
   <a href="https://linux.do/" target="_blank"><img src="https://img.shields.io/badge/Community-LINUX%20DO-111827?logo=linux&logoColor=white" alt="LINUX DO" /></a>
 </p>
 
@@ -14,6 +15,16 @@
 </p>
 
 将 **[muse.ai](https://muse.ai/)** 网页端的前沿多模态能力逆向工程封装为标准的 **OpenAI 兼容 RESTful API**。通过无头浏览器 CDP 协议穿透、热备 WebSocket 隧道复用与动态 Session 管理，原生支持文本对话（2~3 秒级流式首字响应）、文生图、图生图编辑、文生视频、首帧图生视频，并提供多账号池亲和轮转、全自动 48 小时会话续期与云端 VM 唤醒保活，以及配套 Chrome 一键导号扩展。
+
+> [!TIP]
+> 📖 **Hệ Thống Tài Liệu Kỹ Thuật Toàn Diện (Full Technical Documentation)**
+> 
+> Toàn bộ kiến trúc, chi tiết mã nguồn, phân tích module, sơ đồ luồng dữ liệu (Mermaid) và hướng dẫn API đã được biên soạn chính thức tại thư mục **[`docs/`](docs/README.md)**.
+> - 🏗️ [Kiến Trúc & Thiết Kế Phân Tầng](docs/01-tong-quan/kien-truc.md)
+> - 🚀 [Hướng Dẫn Cài Đặt Chi Tiết](docs/02-cai-dat/huong-dan-cai-dat.md)
+> - 🔌 [Tài Liệu Tra Cứu API Đầy Đủ](docs/06-api/tong-quan-api.md)
+> - 🔄 [Sơ Đồ Tuần Tự (Sequence Diagrams)](docs/05-luong-xu-ly/chat-streaming.md)
+> - 🤝 [Quy Chuẩn Đóng Góp (Contributing)](CONTRIBUTING.md)
 
 ---
 
@@ -407,3 +418,26 @@ python tests/test_session_health.py
 - 修复保活成功误报：区分唤醒请求已接受与 VM 已运行，只有复核状态为 RUNNING 才报告唤醒成功。
 - 管理页显示额度查询时间和过期提示；账号测试分别反馈会话有效性与额度读取状态。
 - 新增离线回归测试，覆盖账号额度隔离及 VM 唤醒状态确认。
+
+
+---
+
+## 📚 Hệ Thống Tài Liệu Kỹ Thuật (Documentation)
+
+Chi tiết toàn bộ kiến trúc kỹ thuật và hướng dẫn phát triển được lưu trữ tại thư mục `docs/`:
+- 📂 [Mục Lục Tổng Quan](docs/README.md)
+- 🏗️ [Kiến Trúc & Thiết Kế](docs/01-tong-quan/kien-truc.md)
+- 📁 [Cấu Trúc Thư Mục](docs/01-tong-quan/cau-truc-thu-muc.md)
+- ⚙️ [Cấu Hình & Biến Môi Trường](docs/02-cai-dat/cau-hinh.md)
+- 🔌 [Tài Liệu Tra Cứu API](docs/06-api/tong-quan-api.md)
+- 🔄 [Sơ Đồ Tuần Tự (Sequence Diagrams)](docs/05-luong-xu-ly/chat-streaming.md)
+- 🧪 [Hướng Dẫn Kiểm Thử](docs/07-huong-dan-phat-trien/kiem-thu.md)
+- 🤝 [Quy Chuẩn Đóng Góp](CONTRIBUTING.md)
+
+---
+
+## 🤝 Đóng Góp & Giấy Phép (Contributing & License)
+
+- **Quy chuẩn đóng góp**: Vui lòng đọc kỹ hướng dẫn tại [CONTRIBUTING.md](CONTRIBUTING.md).
+- **Lịch sử cập nhật**: Xem chi tiết tại [CHANGELOG.md](CHANGELOG.md).
+- **Giấy phép**: Dự án được phát hành theo giấy phép mã nguồn mở [MIT License](LICENSE).

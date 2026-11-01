@@ -1,25 +1,21 @@
-"""muse2api — 把 Muse(muse.ai) 网页免费账号的对话/生图/生视频额度反代成 API。
+"""muse2api: Dịch vụ Reverse Proxy chuyển đổi năng lực tạo nội dung của muse.ai thành chuẩn OpenAI RESTful API.
 
-OpenAI 兼容:
-  POST /v1/chat/completions          （文本 / 代码对话，支持 stream，可接 Codex）
-  POST /v1/images/generations
-  POST /v1/videos  +  GET /v1/videos/{task_id}
-  GET  /v1/models
-  GET  /v1/media/{name}
-
-管理（前端账号池管理页面在 GET /）:
-  GET    /admin/status
-  GET    /admin/accounts
-  POST   /admin/accounts            （单条 / 批量文本 / 批量数组）
-  PATCH  /admin/accounts/{id}       （改标签、启用/禁用）
-  DELETE /admin/accounts/{id}
-  POST   /admin/accounts/{id}/test  （真实打开 muse.ai 验证会话是否有效）
-  POST   /admin/accounts/{id}/relogin
-  GET    /admin/tasks               （任务记录）
-  DELETE /admin/tasks/{id}  |  POST /admin/tasks/clear
-  GET    /admin/media  |  POST /admin/media/delete  |  DELETE /admin/media/{name}
-  GET    /admin/extension           （浏览器扩展 zip，用来取 cookie）
-  GET    /admin/cookie-helper       （命令行取 cookie 脚本，进阶）
+Module ứng dụng chính (Application Entry Point & Controller):
+  - Khởi tạo máy chủ FastAPI và định tuyến toàn bộ API endpoints.
+  - Cung cấp giao diện tương thích 100% chuẩn OpenAI API:
+      + POST /v1/chat/completions          : Trò chuyện văn bản / viết mã, hỗ trợ SSE Stream打字机, tái sử dụng Tab ấm 2-3s.
+      + POST /v1/responses                 : Chuẩn đối thoại Codex thế hệ mới.
+      + POST /v1/images/generations        : Văn bản sinh hình ảnh (Text-to-Image).
+      + POST /v1/images/edits              : Chỉnh sửa ảnh tham chiếu (Image-to-Image, hỗ trợ 1 hoặc nhiều ảnh).
+      + POST /v1/videos & GET /v1/videos/{id}: Văn bản / ảnh sinh video với hàng đợi tác vụ bất đồng bộ.
+      + GET  /v1/models                    : Danh sách các mô hình ảo hỗ trợ (gpt-4o, claude-3-5, deepseek...).
+      + GET  /v1/media/{name}              : Phân phối trực tiếp tệp hình ảnh PNG/WebP và video MP4.
+  - Cung cấp API quản trị và bảng điều khiển trực quan (Admin Web Console):
+      + GET  /admin & GET /                : Bảng điều khiển quản trị Web UI hiện đại.
+      + GET/POST/PATCH/DELETE /admin/accounts : Quản lý hồ chứa tài khoản muse.ai (nhập lẻ, nhập hàng loạt, kiểm thử).
+      + POST /admin/accounts/keepalive     : Tự động gia hạn session (+48h) và đánh thức máy ảo container (VM wake).
+      + GET  /admin/status & /admin/quota  : Tra cứu sức khỏe hệ thống và hạn mức quota sử dụng hàng tuần.
+      + GET  /admin/update/check & /upgrade: Tự động kiểm tra bản cập nhật mới từ GitHub và nâng cấp OTA 1-click.
 """
 from __future__ import annotations
 

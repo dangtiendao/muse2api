@@ -18,12 +18,30 @@
 // @run-at       document-end
 // ==/UserScript==
 
+/**
+ * @file muse2api_cookie_importer.user.js
+ * @description Userscript dành cho Tampermonkey / Violentmonkey chạy trực tiếp trên tên miền muse.ai.
+ * 
+ * Tính năng chính:
+ *   - Tạo nút tròn nổi (Floating Trigger) và bảng điều khiển hiện đại ngay trên trang web muse.ai.
+ *   - Trích xuất cookie phiên (hatch_sess, hatch_vml) bằng GM_cookie API (đọc được cả cờ httpOnly).
+ *   - Kiểm tra trực quan trạng thái sẵn sàng của phiên làm việc (Session Health Status).
+ *   - Đẩy trực tiếp Cookie lên endpoint `/admin/accounts` của dịch vụ muse2api bằng GM_xmlhttpRequest.
+ *   - Sao lưu chuỗi Cookie vào Clipboard người dùng để dự phòng dán thủ công.
+ */
+
 (function () {
   'use strict';
 
+  // Khóa lưu trữ cấu hình trong bộ nhớ extension Tampermonkey
   const STORE_KEY = '***';
+  // Các cookie bắt buộc quyết định tính hợp lệ của tài khoản
   const ESSENTIAL = ['hatch_sess', 'hatch_vml'];
 
+  /**
+   * Nạp cấu hình dịch vụ đã lưu (Base URL, API Key, Nhãn tài khoản).
+   * @returns {{base: string, key: string, label: string}}
+   */
   function loadCfg() {
     const fallback = { base: '', key: '', label: '' };
     if (typeof GM_getValue === 'function') {
@@ -36,6 +54,10 @@
     }
   }
 
+  /**
+   * Lưu cấu hình dịch vụ vào GM_setValue hoặc localStorage dự phòng.
+   * @param {{base: string, key: string, label: string}} cfg
+   */
   function saveCfg(cfg) {
     if (typeof GM_setValue === 'function') {
       GM_setValue(STORE_KEY, cfg);
@@ -44,6 +66,11 @@
     }
   }
 
+  /**
+   * Chuẩn hóa địa chỉ dịch vụ muse2api (bổ sung giao thức http/https, bỏ dấu gạch chéo cuối).
+   * @param {string} v - URL đầu vào.
+   * @returns {string} URL đã chuẩn hóa.
+   */
   function normBase(v) {
     let s = (v || '').trim();
     if (!s) return '';
@@ -54,6 +81,11 @@
     return s;
   }
 
+  /**
+   * Hiển thị thông báo Toast nổi ở đáy màn hình.
+   * @param {string} msg - Nội dung thông điệp.
+   * @param {'info'|'ok'|'err'} [type='info'] - Phân loại màu sắc thông báo.
+   */
   function showToast(msg, type = 'info') {
     const el = document.createElement('div');
     el.textContent = msg;
@@ -66,6 +98,10 @@
     }, 4000);
   }
 
+  /**
+   * Đọc danh sách Cookie của miền muse.ai thông qua GM_cookie API kết hợp document.cookie.
+   * @returns {Promise<{cookies: Object.<string, string>, expires: Object.<string, number>}>}
+   */
   async function getCookies() {
     const out = {}, exp = {};
     if (typeof GM_cookie !== 'undefined' && typeof GM_cookie.list === 'function') {
@@ -115,6 +151,10 @@
     return { cookies: out, expires: exp };
   }
 
+  /**
+   * Kiểm tra mức độ hoàn chỉnh của phiên đăng nhập (Session Health Check).
+   * @returns {Promise<{hasCore: boolean, count: number, missing: string[], cookies: Object}>}
+   */
   async function checkSessionStatus() {
     const { cookies } = await getCookies();
     const missing = ESSENTIAL.filter(n => !(n in cookies));
@@ -122,6 +162,10 @@
     return { hasCore, count: Object.keys(cookies).length, missing, cookies };
   }
 
+  /**
+   * Thực thi trích xuất cookie và gửi HTTP POST sang máy chủ muse2api.
+   * @param {HTMLButtonElement|null} [btnEl=null] - Nút bấm kích hoạt để cập nhật trạng thái UI.
+   */
   async function executePush(btnEl = null) {
     const cfg = loadCfg();
     const base = normBase(cfg.base);
@@ -130,7 +174,7 @@
 
     if (btnEl) {
       btnEl.disabled = true;
-      btnEl.innerHTML = '<span style="opacity:0.8">⏳ 提取中…</span>';
+      btnEl.innerHTML = '<span style="opacity:0.8">⏳ 提取中… / Đang trích xuất...</span>';
     }
 
     try {
@@ -138,7 +182,7 @@
       const names = Object.keys(cookies);
 
       if (!names.length) {
-        showToast('未检测到 muse.ai Cookie，请确保已登录账号！', 'err');
+        showToast('未检测到 muse.ai Cookie，请确保已登录账号！ / Chưa phát hiện Cookie, hãy đảm bảo đã đăng nhập!', 'err');
         return;
       }
 
@@ -148,6 +192,7 @@
         return;
       }
 
+      // Sao lưu chuỗi cookie dạng name=value; vào clipboard
       const cookieStr = Object.entries(cookies).map(([k, v]) => `${k}=${v}`).join('; ');
       if (typeof GM_setClipboard === 'function') {
         GM_setClipboard(cookieStr);
@@ -158,7 +203,7 @@
         return;
       }
 
-      if (btnEl) btnEl.innerHTML = '<span style="opacity:0.8">🚀 推送至服务…</span>';
+      if (btnEl) btnEl.innerHTML = '<span style="opacity:0.8">🚀 推送至服务… / Đang gửi...</span>';
 
       const headers = { 'Content-Type': 'application/json' };
       if (key) {
@@ -190,7 +235,7 @@
       try { data = JSON.parse(txt); } catch (_) {}
 
       if (r.status === 401) {
-        showToast('推送失败：API Key 错误 (401)', 'err');
+        showToast('推送失败：API Key 错误 (401) / Thất bại: Sai API Key (401)', 'err');
         return;
       }
       if (!r.ok) {
@@ -212,6 +257,9 @@
     }
   }
 
+  /**
+   * Cập nhật huy hiệu trạng thái hiển thị số lượng cookie cốt lõi đã thu thập.
+   */
   async function updateStatusBadge() {
     const badge = document.getElementById('muse-status-tag');
     if (!badge) return;
@@ -225,6 +273,9 @@
     }
   }
 
+  /**
+   * Đóng hoặc mở bảng điều khiển nhập Cookie.
+   */
   function togglePanel() {
     const existing = document.getElementById('muse2api-token-panel');
     if (existing) {
@@ -234,6 +285,9 @@
     showPanel();
   }
 
+  /**
+   * Tạo DOM và hiển thị bảng điều khiển nổi.
+   */
   function showPanel() {
     if (document.getElementById('muse2api-token-panel')) {
       document.getElementById('muse2api-token-panel').remove();
@@ -250,7 +304,7 @@
                   box-shadow:0 20px 50px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(96, 165, 250, 0.25);
                   backdrop-filter:blur(16px); font-size:13px; line-height:1.4;">
         
-        <!-- 头部 -->
+        <!-- 头部 / Tiêu đề bảng điều khiển -->
         <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; padding-bottom:10px; border-bottom:1px solid #1e293b;">
           <div style="display:flex; align-items:center; gap:8px;">
             <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#38bdf8; box-shadow:0 0 10px #38bdf8;"></span>
@@ -260,13 +314,13 @@
           <button id="muse-close-btn" style="background:transparent; border:none; color:#64748b; font-size:18px; cursor:pointer; padding:0 4px; line-height:1;">✕</button>
         </div>
 
-        <!-- 状态指示栏 -->
+        <!-- 状态指示栏 / Thanh chỉ báo trạng thái phiên -->
         <div style="background:#0f172a; border:1px solid #1e293b; border-radius:10px; padding:10px 12px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center;">
-          <span style="font-size:12px; color:#94a3b8;">当前网页会话</span>
+          <span style="font-size:12px; color:#94a3b8;">当前网页会话 / Phiên hiện tại</span>
           <span id="muse-status-tag" style="font-size:12px; font-weight:600; color:#94a3b8;">检测中…</span>
         </div>
 
-        <!-- 表单配置项（直接内嵌输入框，自动记忆） -->
+        <!-- 表单配置项（直接内嵌输入框，自动记忆） / Các trường cấu hình -->
         <div style="margin-bottom:12px;">
           <div style="font-size:11px; color:#94a3b8; margin-bottom:5px; font-weight:500;">服务地址 (Base URL)</div>
           <input id="muse-cfg-base" type="text" placeholder="如 https://muse.yourdomain.com 或 http://localhost:18610"
@@ -291,7 +345,7 @@
                         border-radius:8px; color:#f1f5f9; font-size:12px; outline:none;">
         </div>
 
-        <!-- 动作操作区 -->
+        <!-- 动作操作区 / Khu vực nút hành động -->
         <div style="display:flex; flex-direction:column; gap:8px;">
           <button id="muse-action-push" style="width:100%; padding:10px 0; border:none; border-radius:10px;
                   background:linear-gradient(135deg, #0284c7, #2563eb); color:#fff;
@@ -312,7 +366,7 @@
           </div>
         </div>
 
-        <!-- 底部提示 -->
+        <!-- 底部提示 / Chú thích chân trang -->
         <div style="margin-top:14px; padding-top:10px; border-top:1px solid #1e293b; display:flex; justify-content:space-between; align-items:center; font-size:11px; color:#64748b;">
           <span>配置将自动保存于浏览器本地</span>
           <span>按 Esc 或右上角关闭</span>
@@ -323,7 +377,7 @@
     document.body.appendChild(panel);
     updateStatusBadge();
 
-    // 绑定事件与自动保存
+    // 绑定事件与自动保存 / Liên kết sự kiện và tự động ghi nhớ input
     const baseIn = document.getElementById('muse-cfg-base');
     const keyIn = document.getElementById('muse-cfg-key');
     const labelIn = document.getElementById('muse-cfg-label');
@@ -345,7 +399,7 @@
     document.getElementById('muse-close-btn').onclick = () => panel.remove();
     document.getElementById('muse-action-save').onclick = () => {
       saveInputs();
-      showToast('✓ 配置已保存！', 'ok');
+      showToast('✓ 配置已保存！ / Đã lưu cấu hình!', 'ok');
     };
 
     document.getElementById('muse-action-copy').onclick = async () => {
@@ -365,6 +419,9 @@
     };
   }
 
+  /**
+   * Tạo nút tròn nổi kích hoạt (Floating Ball) ở góc dưới bên phải màn hình.
+   */
   function mountFloatingTrigger() {
     if (document.getElementById('muse2api-floating-ball')) return;
     const ball = document.createElement('div');
@@ -385,11 +442,13 @@
     document.body.appendChild(ball);
   }
 
+  // Đăng ký lệnh menu trong tiện ích mở rộng Tampermonkey
   if (typeof GM_registerMenuCommand === 'function') {
     GM_registerMenuCommand('🚀 打开 muse2api 导入面板', togglePanel);
     GM_registerMenuCommand('⚡ 直接一键推送当前账号', () => executePush());
   }
 
+  // Tự động gắn nút nổi khi DOM sẵn sàng
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', mountFloatingTrigger);
   } else {

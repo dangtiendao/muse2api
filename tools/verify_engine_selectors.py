@@ -1,12 +1,17 @@
-"""直接用 engine.py 的现网 JS 片段打真页面，验证 / 修正选择器。
+"""直接用 engine.py 的现网 JS 片段打真页面，验证 / 修正选择器 (Verify & Debug Engine DOM Selectors).
 
-用法：
+Mục đích:
+  Công cụ kiểm thử và xác thực thực tế các bộ chọn CSS/JS của `engine.py` trên giao diện trang web muse.ai.
+  Hỗ trợ nhà phát triển cập nhật bộ chọn khi muse.ai thay đổi cấu trúc DOM, aria-label hoặc các thuộc tính React.
+
+Quy trình kiểm tra:
+  1) Kết nối tới trang web muse.ai đang mở trong trình duyệt Chromium qua cổng CDP.
+  2) Chạy đoạn mã `engine._ATT_JS` -> In danh sách các tệp đính kèm được nhận diện.
+  3) Chạy logic inject ảnh tham chiếu + chờ xác nhận -> Kiểm tra nút "Remove attachment / 移除附件" có xuất hiện không.
+  4) In toàn bộ danh sách `button[aria-label]` trong khung soạn thảo để kiểm tra tính tương thích đa ngôn ngữ.
+
+Cách sử dụng:
   python3 tools/verify_engine_selectors.py
-会：
-  1) 连到现网 muse.ai 页面
-  2) 跑 engine._ATT_JS -> 打印抓到的附件
-  3) 跑 engine 的注入 + 等待确认逻辑，测「移除附件」按钮是否出现
-  4) 打印当前 composer 里所有 button[aria-label]
 """
 from __future__ import annotations
 
@@ -22,53 +27,69 @@ from cdp import CDP, http_json  # noqa: E402
 import engine as E  # noqa: E402
 
 CDP_PORT = 19210
+# Chuỗi Base64 đại diện cho một ảnh PNG 1x1 pixel trong suốt dùng để thử nghiệm tải ảnh
 PNG_B64 = ("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmM"
            "IQAAAABJRU5ErkJggg==")
 
 
-def find_page_ws():
+def find_page_ws() -> tuple[str, str]:
+    """Tìm kiếm URL WebSocket debugger của tab đang mở muse.ai trên cổng CDP.
+    
+    Returns:
+        tuple[str, str]: Cặp gồm (webSocketDebuggerUrl, pageUrl).
+        
+    Raises:
+        SystemExit: Nếu không tìm thấy tab muse.ai nào đang chạy.
+    """
     pages = http_json(f"http://127.0.0.1:{CDP_PORT}/json")
     for p in pages:
         if p.get("type") == "page" and "muse.ai" in (p.get("url") or ""):
             return p.get("webSocketDebuggerUrl"), p.get("url")
-    raise SystemExit("没找到 muse.ai 页面")
+    raise SystemExit("没找到 muse.ai 页面 / Không tìm thấy tab muse.ai đang mở trên cổng CDP")
 
 
 class FakeEngine:
-    """只带 page 的小壳，复用 engine 的 JS / 逻辑。"""
+    """Lớp vỏ giả lập (Mock Engine) chứa page CDP để tái sử dụng trực tiếp các hàm của MuseEngine."""
+    
     def __init__(self, page):
+        """Khởi tạo Mock Engine với trang CDP cụ thể.
+        
+        Args:
+            page (CDP): Thể hiện client CDP đã kết nối vào tab mục tiêu.
+        """
         self.page = page
         self.cfg = SimpleNamespace(media_dir="/tmp", profile_dir="/tmp")
 
-    # 借用真方法
+    # Mượn trực tiếp các phương thức từ MuseEngine
     attachments = E.MuseEngine.attachments
     _clear_attachments = E.MuseEngine._clear_attachments
 
 
 def main():
+    """Hàm điều phối kịch bản kiểm tra thực tế trên trang muse.ai."""
     ws, url = find_page_ws()
     print(f"[verify] page = {url}\n")
     c = CDP(ws)
     e = FakeEngine(c)
     try:
-        # 0) composer 所有 aria-label
+        # 0) Liệt kê toàn bộ thuộc tính aria-label của button trong khung soạn thảo
         labels = c.js("""JSON.stringify(Array.from(document.querySelectorAll('button[aria-label]'))
             .map(function(b){return b.getAttribute('aria-label');}))""")
         print("=== button[aria-label] on page ===")
         print(labels)
 
-        # 1) engine._ATT_JS
+        # 1) Kiểm tra khả năng trích xuất danh sách media bằng engine._ATT_JS
         atts = e.attachments()
         print(f"\n=== engine.attachments() -> {len(atts)} ===")
         for a in atts[:8]:
             print("  ", json.dumps({k: (str(v)[:70] if k.endswith('Src') or k == 'src' else v)
                                     for k, v in a.items()}, ensure_ascii=False))
 
-        # 2) 注入 + 两种确认判据
-        print("\n=== 注入 1x1 PNG ===")
+        # 2) Thử nghiệm inject ảnh mẫu 1x1 PNG vào input file và kiểm tra trạng thái xác nhận
+        print("\n=== 注入 1x1 PNG / Inject thử ảnh mẫu 1x1 PNG ===")
         res = c.js(E.MuseEngine._attach_image.__doc__ and
                    "0" or "0")  # noop placeholder
-        # 直接搬 engine 的注入 JS
+        # Đoạn mã JavaScript tạo Blob từ Base64 và gán vào input[type=file] thông qua DataTransfer API
         inject = """(function(b64, mime){
             var bin=atob(b64); var arr=new Uint8Array(bin.length);
             for(var i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i);
@@ -85,6 +106,7 @@ def main():
         })(%s, %s)""" % (json.dumps(PNG_B64), json.dumps("image/png"))
         print("inject:", c.js(inject))
 
+        # Kiểm tra nút Remove attachment có xuất hiện trong vòng 6 giây hay không
         for i in range(12):
             time.sleep(0.5)
             old = c.js("""(function(){return Boolean(document.querySelector('button[aria-label*="Remove attachment" i]'));})()""")
@@ -96,7 +118,7 @@ def main():
                 print(f"  [t={i*0.5+0.5}s] OLD(Remove attachment EN)={old}  NEW(移除附件 ZH)={zh}  composerImgs={img}")
                 if old or zh:
                     break
-        # 清理
+        # Dọn dẹp tệp đính kèm sau khi thử nghiệm
         print("clear:", e._clear_attachments())
     finally:
         c.close()
