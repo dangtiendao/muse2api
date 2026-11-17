@@ -77,7 +77,7 @@ with tempfile.TemporaryDirectory() as home:
     try:
         engine._attach_images([valid] * 5)
     except app.MuseGenerationError as exc:
-        assert "最多 4 张" in str(exc)
+        assert "tối đa 4 ảnh" in str(exc)
     else:
         raise AssertionError("more than four images were accepted")
 
@@ -140,8 +140,8 @@ async def expect_endpoint_400(request, text):
 # Thực thi đường dẫn endpoint thực tế, không chỉ riêng hàm trợ giúp.
 for body, text in [
     ({"prompt": "x", "async": True, "images": [None]}, "images[0]"),
-    ({"prompt": "x", "async": True, "images": ["new"], "image": "old"}, "不能"),
-    ({"prompt": "x", "async": True, "images": "not-an-array"}, "必须是数组"),
+    ({"prompt": "x", "async": True, "images": ["new"], "image": "old"}, "không thể"),
+    ({"prompt": "x", "async": True, "images": "not-an-array"}, "phải là một mảng"),
 ]:
     asyncio.run(expect_endpoint_400(FakeJSONRequest(body), text))
 
@@ -174,6 +174,6 @@ asyncio.run(expect_endpoint_400(total_request, "24 MiB"))
 
 count_request = FakeMultipartRequest(FakeForm(
     ["x"] * (app.MAX_REFERENCE_IMAGES + 1), prompt="x"))
-asyncio.run(expect_endpoint_400(count_request, "最多 4 张"))
+asyncio.run(expect_endpoint_400(count_request, "tối đa 4 ảnh"))
 
 print("PASS: endpoint JSON conflicts plus multipart count, per-file and total byte limits")

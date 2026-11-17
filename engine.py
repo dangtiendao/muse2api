@@ -115,7 +115,7 @@ def _open_public_ref_image(url: str):
     for _ in range(11):
         parsed = urllib.parse.urlsplit(url)
         if parsed.scheme not in ("http", "https") or not parsed.hostname:
-            raise RefImageSafetyError("参考图重定向仅允许有效的 http(s) URL")
+            raise RefImageSafetyError("Chuyển hướng ảnh tham chiếu chỉ cho phép URL http(s) hợp lệ")
         port = parsed.port or (443 if parsed.scheme == "https" else 80)
         addresses = socket.getaddrinfo(parsed.hostname, port, type=socket.SOCK_STREAM)
         checked = []
@@ -125,11 +125,11 @@ def _open_public_ref_image(url: str):
                 ip = ip.ipv4_mapped
             if not ip.is_global:
                 raise RefImageSafetyError(
-                    "参考图地址被拒绝：仅允许公网地址；如确需私网抓取，请显式设置 "
+                    "Địa chỉ ảnh tham chiếu bị từ chối: chỉ cho phép địa chỉ mạng công cộng; nếu thực sự cần tải từ mạng nội bộ, vui lòng đặt tường minh "
                     "MUSE2API_REF_IMAGE_PRIVATE_FETCH=1")
             checked.append(str(ip))
         if not checked:
-            raise urllib.error.URLError("参考图域名未解析到地址")
+            raise urllib.error.URLError("Tên miền ảnh tham chiếu không phân giải được địa chỉ IP")
         opener = urllib.request.build_opener(
             urllib.request.ProxyHandler({}), _NoRefImageRedirect(),
             _RefImageHTTPHandler(checked[0]))
@@ -142,7 +142,7 @@ def _open_public_ref_image(url: str):
                 raise
             exc.close()
             url = urllib.parse.urljoin(url, location)
-    raise urllib.error.URLError("参考图重定向次数过多")
+    raise urllib.error.URLError("Ảnh tham chiếu chuyển hướng quá nhiều lần")
 
 
 class MuseEngine:
@@ -263,7 +263,7 @@ class MuseEngine:
             except Exception as exc:  # noqa: BLE001
                 last = exc
                 time.sleep(1)
-        raise MuseGenerationError(f"Chromium 启动失败: {last}")
+        raise MuseGenerationError(f"Khởi động Chromium thất bại: {last}")
 
     def stop(self):
         """Dừng hoàn toàn engine, đóng các Incognito BrowserContext, ngắt kết nối WebSocket và hủy tiến trình Chromium."""
@@ -337,7 +337,7 @@ class MuseEngine:
                                   {"behavior": "allow", "downloadPath": self.cfg.download_dir})
                         return page
             except Exception as exc:
-                log.warning("Target.createBrowserContext 创建隔离上下文失败，回退到普通标签页: %s", exc)
+                log.warning("Target.createBrowserContext tạo ngữ cảnh cô lập thất bại, quay về dùng tab thông thường: %s", exc)
 
         import requests
         tgt = requests.put(
@@ -391,19 +391,19 @@ class MuseEngine:
         except requests.RequestException as exc:
             # Không hiển thị lại nội dung request: ngoại lệ có thể chứa URL proxy kèm thông tin xác thực.
             raise MuseGenerationError(
-                f"/api/session 网络请求失败 ({type(exc).__name__})；请检查服务器网络/代理后重试") from None
+                f"Yêu cầu mạng /api/session thất bại ({type(exc).__name__}); vui lòng kiểm tra mạng/proxy máy chủ rồi thử lại") from None
         if r.status_code == 401:
-            raise MuseAuthError("会话认证失败 (/api/session HTTP 401)，请在官网确认登录后重新导入 cookie")
+            raise MuseAuthError("Xác thực phiên thất bại (/api/session HTTP 401), vui lòng kiểm tra đăng nhập trên trang chủ rồi nhập lại cookie")
         if r.status_code != 200:
-            hint = ("访问被拒绝，请检查服务器出口/地区/访问限制；不能据此判定 Cookie 失效"
-                    if r.status_code == 403 else "上游请求未成功，请稍后重试并检查服务器网络")
-            raise MuseGenerationError(f"/api/session HTTP {r.status_code}：{hint}")
+            hint = ("Truy cập bị từ chối, vui lòng kiểm tra IP đầu ra/khu vực/giới hạn truy cập của máy chủ; không thể dựa vào đây để kết luận Cookie hết hạn"
+                    if r.status_code == 403 else "Yêu cầu tới upstream không thành công, vui lòng thử lại sau và kiểm tra mạng máy chủ")
+            raise MuseGenerationError(f"/api/session HTTP {r.status_code}: {hint}")
         try:
             sj = r.json()
         except ValueError:
-            raise MuseGenerationError("/api/session HTTP 200 返回非 JSON；会话状态未确认") from None
+            raise MuseGenerationError("/api/session HTTP 200 trả về dữ liệu không phải JSON; trạng thái phiên chưa được xác nhận") from None
         if not isinstance(sj, dict) or sj.get("status") != "assigned":
-            raise MuseGenerationError("/api/session HTTP 200 未返回 assigned 会话；请在官网检查账号/工作区状态")
+            raise MuseGenerationError("/api/session HTTP 200 không trả về phiên assigned; vui lòng kiểm tra trạng thái tài khoản/workspace trên trang chủ")
         for c in r.cookies:
             if c.value:
                 cur_cookies[c.name] = c.value
@@ -609,7 +609,7 @@ class MuseEngine:
             except MuseAuthError:
                 raise
             except Exception as e:
-                log.warning("预续签 /api/session 失败（继续尝试浏览器加载）: %s", e)
+                log.warning("Gia hạn sớm /api/session thất bại (tiếp tục thử tải bằng trình duyệt): %s", e)
 
         page = self._open_page()
         self._apply_cookies(page, cookies, expires)
@@ -624,12 +624,12 @@ class MuseEngine:
             body = ""
         self._close_page()
         if "connecting..." in body:
-            raise MuseGenerationError("页面网关连接超时 (Connecting...)，正在自动切换账号")
+            raise MuseGenerationError("Quá thời gian kết nối cổng trang web (Connecting...), đang tự động chuyển tài khoản")
         # Phân biệt giữa phiên làm việc đã hết hạn và trang web không bao giờ sẵn sàng.
-        if re.search(r"log in|sign in|create an account|登录|use another account", body):
-            raise MuseAuthError("会话已被 muse.ai 登出（可能被其它登录挤掉或触发风控），"
-                                "请用浏览器扩展重新导入 cookie")
-        raise MuseGenerationError("muse.ai 页面加载超时（未出现聊天输入框），请检查服务器网络后重试；未确认会话失效")
+        if re.search(r"log in|sign in|create an account|登录|đăng nhập|use another account", body):
+            raise MuseAuthError("Phiên đã bị muse.ai đăng xuất (có thể bị đăng nhập nơi khác đẩy ra hoặc kích hoạt kiểm soát rủi ro), "
+                                "vui lòng dùng tiện ích trình duyệt nhập lại cookie")
+        raise MuseGenerationError("Tải trang muse.ai quá thời gian chờ (chưa xuất hiện ô nhập trò chuyện), vui lòng kiểm tra mạng máy chủ rồi thử lại; chưa xác nhận phiên hết hạn")
 
     def close_current_page(self):
         """Giải phóng tường minh trang và ngữ cảnh cô lập do luồng hiện tại nắm giữ."""
@@ -737,15 +737,15 @@ class MuseEngine:
         self._close_page()
         try:
             self.ensure_page(cookies, expires, account_id=account_id)
-            self._quota_click(self._QUOTA_SETTINGS_JS, '找不到设置入口（Settings／設定／设置）')
-            self._quota_click(self._QUOTA_MENU_JS, '设置菜单未出现可识别的设置项')
+            self._quota_click(self._QUOTA_SETTINGS_JS, 'Không tìm thấy nút Cài đặt (Settings / 設定 / 设置)')
+            self._quota_click(self._QUOTA_MENU_JS, 'Menu cài đặt không xuất hiện mục cài đặt nhận diện được')
             deadline = time.monotonic() + 12.0
             while True:
                 parsed = self._parse_quota(self.page.js(self._QUOTA_DIALOG_JS) or '')
                 if parsed['found']:
                     return parsed
                 if time.monotonic() >= deadline:
-                    raise MuseGenerationError('额度面板未读到有效用量；旧缓存未覆盖')
+                    raise MuseGenerationError('Bảng hạn mức không đọc được dữ liệu sử dụng hợp lệ; giữ nguyên bộ nhớ đệm cũ')
                 time.sleep(0.2)
         finally:
             self._close_page()
@@ -902,7 +902,7 @@ class MuseEngine:
             "return JSON.stringify({x:Math.round(r.left+r.width/2),"
             "y:Math.round(r.top+r.height/2)});})()")
         if not rect:
-            raise MuseGenerationError("找不到聊天输入框")
+            raise MuseGenerationError("Không tìm thấy ô nhập trò chuyện")
         c = json.loads(rect)
         for t in ("mousePressed", "mouseReleased"):
             self.page.send("Input.dispatchMouseEvent",
@@ -1027,7 +1027,7 @@ class MuseEngine:
         progress_sent = 0
         while time.time() < deadline:
             if stop_event is not None and stop_event.is_set():
-                raise MuseGenerationError("客户端已断开连接，终止生成任务")
+                raise MuseGenerationError("Client đã ngắt kết nối, hủy tác vụ tạo nội dung")
             time.sleep(0.6)
             self._scroll_bottom()
             atts = self.attachments()
@@ -1118,12 +1118,12 @@ class MuseEngine:
                         pass
 
             if re.search(r"额度不足|积分不足|out of credits|达到上限|token limit", tail, re.I):
-                raise MuseGenerationError("账号额度不足")
+                raise MuseGenerationError("Tài khoản đã hết hạn mức")
             # Nút Stop cũng có thể hiển thị cho các tin nhắn chưa từng được gateway xác nhận.
             if elapsed > 30.0 and cur_cnt == base_agent_cnt and re.search(
                     r"Still sending|Delivery not confirmed|正在发送|未确认送达", tail, re.I):
                 raise MuseGenerationError(
-                    "提示词未成功送达后端（Still sending / Delivery not confirmed），终止等待并重试")
+                    "Prompt chưa được gửi tới backend thành công (Still sending / Delivery not confirmed), dừng chờ và thử lại")
 
             refusal_source = cur_txt if cur_cnt > base_agent_cnt else (
                 tail if seen_stop and not has_stop and elapsed > 20.0 else "")
@@ -1134,7 +1134,7 @@ class MuseEngine:
                 else:
                     refusal_last, refusal_stable = refusal, 0
                 if refusal_stable >= 4 and elapsed > 8.0:
-                    raise MuseModelRefusalError(f"模型未生成媒体，仅返回文本: {refusal}")
+                    raise MuseModelRefusalError(f"Mô hình không tạo media, chỉ trả về văn bản: {refusal}")
             else:
                 refusal_last, refusal_stable = "", 0
 
@@ -1151,7 +1151,7 @@ class MuseEngine:
                     if txt_stable >= 15 and elapsed > 8.0:
                         clean = self._clean_model_text(cur_txt)
                         raise MuseModelRefusalError(
-                            f"模型未生成媒体，仅返回文本: {clean}")
+                            f"Mô hình không tạo media, chỉ trả về văn bản: {clean}")
                 else:
                     txt_stable = 0
             else:
@@ -1165,7 +1165,7 @@ class MuseEngine:
                     and cur_cnt <= base_agent_cnt and len(atts) <= base_att_cnt
                     and elapsed >= 180.0 and time.time() - last_activity >= 90.0):
                 raise MuseGenerationError(
-                    "Muse 未建立视频任务线程，页面在提交结束后持续无响应（已提前停止等待）")
+                    "Muse chưa tạo luồng tác vụ video, trang web không phản hồi liên tục sau khi gửi (đã dừng chờ sớm)")
         return None
 
     @staticmethod
@@ -1335,7 +1335,7 @@ class MuseEngine:
                     except Exception:
                         tail = ""
                     if "Still sending" in tail or "Connecting..." in tail:
-                        raise MuseGenerationError("云端 VM 连接超时 (Still sending)")
+                        raise MuseGenerationError("Quá thời gian kết nối VM đám mây (Still sending)")
                 continue
 
             delta = cur[len(sent):] if cur.startswith(sent) else cur
@@ -1347,7 +1347,7 @@ class MuseEngine:
                 break
 
         if not got_first:
-            raise MuseGenerationError("等待助手首字响应超时")
+            raise MuseGenerationError("Quá thời gian chờ phản hồi ký tự đầu tiên từ trợ lý")
 
         # 2. Liên tục thu nhận văn bản gia tăng (incremental text)
         while time.time() < deadline:
@@ -1373,7 +1373,7 @@ class MuseEngine:
                 if has_stop and stable >= 80:
                     return
 
-        raise MuseGenerationError("等待助手回复超时")
+        raise MuseGenerationError("Quá thời gian chờ phản hồi từ trợ lý")
 
     def chat(self, cookies: dict, prompt: str, expires: dict | None = None,
              timeout: int | None = None, account_id: str | None = None) -> str:
@@ -1408,19 +1408,19 @@ class MuseEngine:
         Raises:
             MuseGenerationError: Nếu không thể giải mã hoặc lấy dữ liệu nhị phân sau số lần thử lại.
         """
-        last = "未知"
+        last = "không rõ"
         for _ in range(retries):
             raw = self.page.js(self._EXTRACT_JS % (json.dumps(src), json.dumps(expect)),
                                await_promise=True, timeout=600)
             try:
                 info = json.loads(raw) if isinstance(raw, str) else raw
             except Exception:  # noqa: BLE001
-                info = {"ok": False, "err": f"解析失败 {str(raw)[:150]}"}
+                info = {"ok": False, "err": f"phân tích thất bại {str(raw)[:150]}"}
             if info.get("ok"):
                 return base64.b64decode(info["b64"]), info.get("mime", ""), info.get("url", "")
-            last = info.get("err", "未知")
+            last = info.get("err", "không rõ")
             time.sleep(2)
-        raise MuseGenerationError(f"未能取回生成结果: {last}")
+        raise MuseGenerationError(f"Không thể lấy về kết quả đã tạo: {last}")
 
     # ---------------- Cơ chế tải về dự phòng (Download Fallback) ----------------
     def _download_fallback(self, src: str, timeout: int = 180) -> str | None:
@@ -1483,22 +1483,22 @@ class MuseEngine:
         def checked(data: bytes, mime: str) -> tuple[str, str]:
             mime = (mime or "image/png").split(";", 1)[0].strip().lower()
             if not mime.startswith("image/"):
-                raise MuseGenerationError(f"参考文件不是图片（{mime or 'unknown'}）")
+                raise MuseGenerationError(f"Tệp tham chiếu không phải là hình ảnh ({mime or 'unknown'})")
             if len(data) > MAX_REFERENCE_IMAGE_BYTES:
-                raise MuseGenerationError("单张参考图超过 10 MiB 限制")
+                raise MuseGenerationError("Ảnh tham chiếu đơn lẻ vượt quá giới hạn 10 MiB")
             return base64.b64encode(data).decode("ascii"), mime
 
         if img.startswith("data:"):
             head, sep, payload = img.partition(",")
             if not sep:
-                raise MuseGenerationError("参考图 Data URL 格式无效")
+                raise MuseGenerationError("Định dạng Data URL của ảnh tham chiếu không hợp lệ")
             mime = head[5:].split(";", 1)[0] or "image/png"
             try:
                 data = (base64.b64decode(payload.strip(), validate=True)
                         if ";base64" in head.lower()
                         else urllib.parse.unquote_to_bytes(payload))
             except (binascii.Error, ValueError) as exc:
-                raise MuseGenerationError("参考图 Data URL 编码无效") from exc
+                raise MuseGenerationError("Mã hóa Data URL của ảnh tham chiếu không hợp lệ") from exc
             return checked(data, mime)
 
         if img.startswith(("http://", "https://")):
@@ -1515,7 +1515,7 @@ class MuseEngine:
                 raise
             except Exception as exc:
                 raise MuseGenerationError(
-                    f"下载远程参考图失败: {type(exc).__name__}") from exc
+                    f"Tải ảnh tham chiếu từ xa thất bại: {type(exc).__name__}") from exc
 
         # Chuỗi Base64 thô không chứa đường dẫn phía máy chủ và vẫn an toàn trong chế độ hạn chế.
         try:
@@ -1525,12 +1525,12 @@ class MuseEngine:
 
         if not self.cfg.ref_image_local_files:
             raise RefImageSafetyError(
-                "参考图本地路径被拒绝；如确需读取服务器文件，请显式设置 "
+                "Đường dẫn cục bộ của ảnh tham chiếu bị từ chối; nếu thực sự cần đọc tệp trên máy chủ, vui lòng đặt tường minh "
                 "MUSE2API_REF_IMAGE_LOCAL_FILES=1")
         if os.path.isfile(img):
             try:
                 if os.path.getsize(img) > MAX_REFERENCE_IMAGE_BYTES:
-                    raise MuseGenerationError("单张参考图超过 10 MiB 限制")
+                    raise MuseGenerationError("Ảnh tham chiếu đơn lẻ vượt quá giới hạn 10 MiB")
                 with open(img, "rb") as f:
                     return checked(f.read(MAX_REFERENCE_IMAGE_BYTES + 1),
                                    mimetypes.guess_type(img)[0] or "image/png")
@@ -1538,8 +1538,8 @@ class MuseEngine:
                 raise
             except Exception as exc:
                 raise MuseGenerationError(
-                    f"读取本地参考图失败: {type(exc).__name__}") from exc
-        raise MuseGenerationError("参考图必须是 URL、Data URL、本地图片或有效 Base64")
+                    f"Đọc ảnh tham chiếu cục bộ thất bại: {type(exc).__name__}") from exc
+        raise MuseGenerationError("Ảnh tham chiếu phải là URL, Data URL, ảnh cục bộ hoặc chuỗi Base64 hợp lệ")
 
     def _clear_attachments(self):
         """Xóa ảnh thu nhỏ của tệp đính kèm còn sót lại trong ô nhập trò chuyện (tương thích giao diện Trung/Anh)."""
@@ -1568,7 +1568,7 @@ class MuseEngine:
             MuseGenerationError: Nếu vượt quá số lượng, tổng dung lượng hoặc giao diện không xuất hiện nút xác nhận đính kèm.
         """
         if len(image_data) > MAX_REFERENCE_IMAGES:
-            raise MuseGenerationError(f"参考图最多 {MAX_REFERENCE_IMAGES} 张")
+            raise MuseGenerationError(f"Ảnh tham chiếu tối đa {MAX_REFERENCE_IMAGES} ảnh")
         images = []
         total_bytes = 0
         for index, value in enumerate(image_data):
@@ -1576,13 +1576,13 @@ class MuseEngine:
                 continue
             b64, mime = self._normalize_image(value)
             if not b64:
-                raise MuseGenerationError(f"第 {index + 1} 张参考图读取失败，已停止生成")
+                raise MuseGenerationError(f"Đọc ảnh tham chiếu thứ {index + 1} thất bại, đã dừng tạo")
             try:
                 total_bytes += len(base64.b64decode(b64, validate=True))
             except (binascii.Error, ValueError) as exc:
-                raise MuseGenerationError(f"第 {index + 1} 张参考图编码无效") from exc
+                raise MuseGenerationError(f"Mã hóa ảnh tham chiếu thứ {index + 1} không hợp lệ") from exc
             if total_bytes > MAX_REFERENCE_TOTAL_BYTES:
-                raise MuseGenerationError("参考图总大小超过 24 MiB 限制")
+                raise MuseGenerationError("Tổng dung lượng ảnh tham chiếu vượt quá giới hạn 24 MiB")
             images.append({"b64": b64, "mime": mime, "index": index + 1})
         if not images:
             return
@@ -1640,9 +1640,9 @@ class MuseEngine:
                 timeout=max(15, len(images) * 3))
             res_obj = json.loads(raw_res) if isinstance(raw_res, str) else raw_res
             if not res_obj.get("ok") or res_obj.get("count") != len(images):
-                raise MuseGenerationError("附加参考图失败，已停止生成")
+                raise MuseGenerationError("Đính kèm ảnh tham chiếu thất bại, đã dừng tạo")
         except Exception as e:
-            raise MuseGenerationError("附加参考图失败，已停止生成") from e
+            raise MuseGenerationError("Đính kèm ảnh tham chiếu thất bại, đã dừng tạo") from e
 
         # Chờ xác nhận tệp đính kèm trong ô nhập liệu; hình ảnh lịch sử không chứng minh được lần tải lên này thành công.
         # Giao diện hiện tại hỗ trợ nút xác nhận aria-label = "附加文件"/"移除附件";
@@ -1668,7 +1668,7 @@ class MuseEngine:
             time.sleep(0.3)
         else:
             raise MuseGenerationError(
-                f"参考图上传未确认（{int(attached_count or 0)}/{len(images)}），已停止生成")
+                f"Chưa xác nhận tải lên ảnh tham chiếu ({int(attached_count or 0)}/{len(images)}), đã dừng tạo")
         time.sleep(0.5)
 
     def _attach_image(self, image_data: str):
@@ -1727,9 +1727,9 @@ class MuseEngine:
         baseline_src = base.get("src") or ""
         base_agent_cnt = self._agent_count()
         if time.monotonic() >= deadline:
-            raise MuseGenerationError("任务准备超时，已停止发送")
+            raise MuseGenerationError("Quá thời gian chuẩn bị tác vụ, đã dừng gửi")
         if self._send(prompt) not in ("clicked", "enter-sent"):
-            raise MuseGenerationError("提示词发送未确认，已停止生成")
+            raise MuseGenerationError("Chưa xác nhận gửi prompt, đã dừng tạo")
         att = self._wait_attachment(
             baseline_src, max(0, deadline - time.monotonic()), expect, on_progress=on_progress,
             base_agent_cnt=base_agent_cnt, base_att_cnt=len(atts_before),
@@ -1737,7 +1737,7 @@ class MuseEngine:
         )
         if not att:
             self._debug_dump("no-attachment")
-            raise MuseGenerationError("等待生成超时，未出现新的生成结果")
+            raise MuseGenerationError("Quá thời gian chờ tạo nội dung, không xuất hiện kết quả mới")
 
         os.makedirs(self.cfg.media_dir, exist_ok=True)
         data = mime = url = None
@@ -1755,7 +1755,7 @@ class MuseEngine:
                 f.write(data)
             kind = "video" if ext in (".mp4", ".webm", ".mov") else "image"
             if expect == "video" and kind != "video":
-                raise MuseGenerationError(f"期望生成视频，但提取成品类型为图片 ({ext})，拒绝以图片冒充视频交付")
+                raise MuseGenerationError(f"Kỳ vọng tạo video nhưng thành phẩm trích xuất là hình ảnh ({ext}), từ chối trả về ảnh thay cho video")
             return {"path": dst, "filename": name, "size": len(data), "ext": ext, "mime": mime,
                     "kind": kind,
                     "via": "blob", "attachment": att.get("tid"),
@@ -1763,14 +1763,14 @@ class MuseEngine:
 
         path = self._download_fallback(selected_src)
         if not path:
-            raise MuseGenerationError("已生成但未能取回文件")
+            raise MuseGenerationError("Đã tạo xong nhưng không thể lấy tệp về")
         ext = os.path.splitext(path)[1].lower() or ".bin"
         name = f"{uuid.uuid4().hex}{ext}"
         dst = os.path.join(self.cfg.media_dir, name)
         shutil.move(path, dst)
         kind = "video" if ext in (".mp4", ".webm", ".mov") else "image"
         if expect == "video" and kind != "video":
-            raise MuseGenerationError(f"期望生成视频，但下载成品类型为图片 ({ext})，拒绝以图片冒充视频交付")
+            raise MuseGenerationError(f"Kỳ vọng tạo video nhưng thành phẩm tải về là hình ảnh ({ext}), từ chối trả về ảnh thay cho video")
         return {"path": dst, "filename": name, "size": os.path.getsize(dst), "ext": ext, "mime": "",
                 "kind": kind,
                 "via": "download", "attachment": att.get("tid"),

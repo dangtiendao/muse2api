@@ -39,6 +39,7 @@ assert tuple(map(int, manifest["version"].split("."))) >= (1, 0, 1)
 admin = (ROOT / "admin.html").read_text(encoding="utf-8")
 assert "muse.ai 的 4 条核心 cookie" not in admin
 assert "muse.ai's 4 core cookies" not in admin
+assert "Cookie bắt buộc:" in admin
 assert "<code>hatch_sess</code>、<code>hatch_vml</code>" in admin
 assert "Required cookies:" in admin
 assert "<code>hatch_sess</code>, <code>hatch_vml</code>." in admin

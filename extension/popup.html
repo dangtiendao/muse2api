@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="vi">
 <head>
 <meta charset="utf-8">
-<title>Muse2API Cookie 导入</title>
+<title>Muse2API Nhập Cookie</title>
 <style>
   :root{color-scheme:dark}
   *{box-sizing:border-box}
@@ -44,38 +44,39 @@
 </style>
 </head>
 <body>
-  <h1><span class="dot"></span><span data-i18n-text>Muse2API Cookie 导入</span>
-    <select id="langSel" class="langsel" title="Language / 语言">
-      <option value="zh">中文</option>
+  <h1><span class="dot"></span><span data-i18n-text>Muse2API Nhập Cookie</span>
+    <select id="langSel" class="langsel" title="Ngôn ngữ / Language / 语言">
+      <option value="vi">Tiếng Việt</option>
       <option value="en">English</option>
+      <option value="zh">中文</option>
     </select>
   </h1>
-  <p class="sub" data-i18n-text>把当前浏览器里 muse.ai 的登录态，一键同步到你的 muse2api 服务。</p>
+  <p class="sub" data-i18n-text>Đồng bộ phiên đăng nhập muse.ai trong trình duyệt này sang dịch vụ muse2api chỉ với 1 cú nhấp chuột.</p>
 
-  <label data-i18n-text>服务地址（BASE URL）</label>
+  <label data-i18n-text>Địa chỉ dịch vụ (BASE URL)</label>
   <input id="base" placeholder="http://your-server-ip:18610" spellcheck="false">
 
   <label>API Key</label>
   <input id="key" placeholder="m2a_..." spellcheck="false">
 
-  <label data-i18n-text>账号标签（可留空）</label>
-  <input id="label" placeholder="例如 muse-main" spellcheck="false">
+  <label data-i18n-text>Nhãn tài khoản (có thể để trống)</label>
+  <input id="label" placeholder="Ví dụ: muse-main" spellcheck="false">
 
-  <button id="go" data-i18n-text>读取并导入</button>
+  <button id="go" data-i18n-text>Đọc và nhập tài khoản</button>
 
   <div class="steps" data-i18n="steps">
-    <b>用之前先确认两件事：</b><br>
-    1. 你已经在<b>这个浏览器</b>里登录了 <a href="https://muse.ai/" target="_blank"
-       style="color:#4f8cff">muse.ai</a>（能看到聊天界面）。<br>
-    2. 上面的服务地址和 API Key 已填好（在 muse2api 管理页「账号池」页顶部可以复制）。
+    <b>Trước khi dùng hãy kiểm tra 2 điều:</b><br>
+    1. Bạn đã đăng nhập <a href="https://muse.ai/" target="_blank"
+       style="color:#4f8cff">muse.ai</a> ngay trên <b>trình duyệt này</b> (đến khi thấy giao diện trò chuyện).<br>
+    2. Đã điền Địa chỉ dịch vụ và API Key ở trên (có thể sao chép ở đầu tab "Hồ chứa tài khoản" trên trang quản trị muse2api).
   </div>
 
   <div id="log"></div>
 
   <div class="foot" data-i18n="foot">
-    本扩展只做一件事：用浏览器的 <code>chrome.cookies</code> 接口读取 muse.ai 的
-    Cookie（能读到 httpOnly 的那些），POST 到你填的服务地址。
-    不收集、不上传到任何第三方服务器。
+    Tiện ích này chỉ làm duy nhất một việc: dùng API <code>chrome.cookies</code> của trình duyệt để đọc
+    Cookie của muse.ai (bao gồm cả các cookie httpOnly) rồi gửi POST tới địa chỉ dịch vụ bạn nhập.
+    Không thu thập, không tải lên bất kỳ máy chủ bên thứ ba nào.
   </div>
 
   <script src="popup.js"></script>

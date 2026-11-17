@@ -30,7 +30,8 @@ def main():
         manifest = json.loads(archive.read("muse2api-extension/manifest.json"))
         assert manifest["version"] == "1.0.1"
         assert manifest["name"] == "__MSG_extName__"
-        for locale in ("en", "zh_CN"):
+        assert manifest["default_locale"] == "vi"
+        for locale in ("vi", "en", "zh_CN"):
             messages = json.loads(archive.read(
                 f"muse2api-extension/_locales/{locale}/messages.json"
             ))

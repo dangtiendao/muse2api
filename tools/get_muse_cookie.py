@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""muse2api Cookie 助手 —— 一键把 muse.ai 的登录 cookie 导入账号池 (Cookie Exporter Helper).
+"""Công cụ hỗ trợ lấy Cookie muse2api — Đồng bộ cookie đăng nhập muse.ai vào hồ chứa tài khoản chỉ với 1 bước (Cookie Exporter Helper).
 
 Tại sao cần script này?
   Các cookie định danh phiên làm việc của muse.ai (đặc biệt là hatch_sess và hatch_vml) mang cờ httpOnly,
@@ -101,11 +101,11 @@ class WS:
         while b"\r\n\r\n" not in buf:
             chunk = self.sock.recv(4096)
             if not chunk:
-                raise ConnectionError("WebSocket 握手被断开 / Bắt tay WebSocket bị ngắt kết nối")
+                raise ConnectionError("Bắt tay WebSocket bị ngắt kết nối")
             buf += chunk
         status = buf.split(b"\r\n", 1)[0]
         if b" 101" not in status:
-            raise ConnectionError(f"WebSocket 握手失败: {status!r} / Bắt tay WebSocket thất bại")
+            raise ConnectionError(f"Bắt tay WebSocket thất bại: {status!r}")
         self._id = 0
 
     # --- Đóng gói và gửi khung tin (Frame) ---
@@ -137,7 +137,7 @@ class WS:
         while len(out) < n:
             chunk = self.sock.recv(n - len(out))
             if not chunk:
-                raise ConnectionError("连接已关闭 / Kết nối đã đóng")
+                raise ConnectionError("Kết nối đã đóng")
             out += chunk
         return out
 
@@ -161,7 +161,7 @@ class WS:
             if opcode == 0x9:                       # Xử lý frame Ping từ server -> gửi lại Pong (0xA)
                 self._frame(0xA, data)
             elif opcode == 0x8:
-                raise ConnectionError("服务端关闭了连接 / Máy chủ đã đóng kết nối")
+                raise ConnectionError("Máy chủ đã đóng kết nối")
             # Bỏ qua các frame khác (Pong, binary, fragmentation)
 
     def call(self, method: str, params: dict | None = None,
@@ -183,7 +183,7 @@ class WS:
                 if "error" in msg:
                     raise RuntimeError(f"{method}: {msg['error']}")
                 return msg.get("result", {})
-        raise TimeoutError(f"CDP {method} 超时 (Timeout)")
+        raise TimeoutError(f"CDP {method} quá thời gian chờ (Timeout)")
 
     def close(self):
         """Đóng kết nối socket an toàn."""
@@ -280,7 +280,7 @@ def wait_cdp(port: int, timeout: float = 30.0) -> str:
         except Exception as exc:                       # noqa: BLE001
             last = exc
             time.sleep(0.5)
-    raise RuntimeError(f"浏览器调试端口没起来（{port}）：{last} / Cổng debug trình duyệt chưa sẵn sàng ({port}): {last}")
+    raise RuntimeError(f"Cổng debug trình duyệt chưa sẵn sàng ({port}): {last}")
 
 
 # ---------------------------------------------------------------- Đọc Cookie qua CDP
@@ -339,15 +339,15 @@ def upload(base: str, key: str, label: str, cookies: dict[str, dict]) -> dict:
             return json.load(r)
     except urllib.error.HTTPError as e:
         detail = e.read().decode("utf-8", "replace")[:300]
-        raise RuntimeError(f"上传失败 HTTP {e.code}: {detail} / Tải lên thất bại HTTP {e.code}: {detail}") from None
+        raise RuntimeError(f"Tải lên thất bại HTTP {e.code}: {detail}") from None
     except urllib.error.URLError as e:
-        raise RuntimeError(f"连不上 {base}：{e.reason} / Không thể kết nối tới {base}: {e.reason}") from None
+        raise RuntimeError(f"Không thể kết nối tới {base}: {e.reason}") from None
 
 
 def fmt_ts(ts: int) -> str:
     """Định dạng timestamp dạng số sang chuỗi hiển thị ngày giờ thân thiện."""
     if ts <= 0:
-        return "会话级 (Session)"
+        return "Theo phiên (Session)"
     return time.strftime("%Y-%m-%d %H:%M", time.localtime(ts))
 
 
@@ -356,39 +356,39 @@ def main() -> int:
     """Điều phối toàn bộ luồng khởi động trình duyệt, bắt cookie và nhập tài khoản."""
     init_console()
     ap = argparse.ArgumentParser(
-        description="把 muse.ai 的登录 cookie 一键导入 muse2api 账号池 / Tự động xuất cookie đăng nhập muse.ai sang muse2api")
+        description="Tự động xuất cookie đăng nhập muse.ai sang hồ chứa tài khoản muse2api")
     ap.add_argument("--base", default=os.environ.get("MUSE2API_BASE", ""),
-                    help="muse2api 地址，如 http://your-server-ip:18610")
+                    help="Địa chỉ muse2api, ví dụ http://your-server-ip:18610")
     ap.add_argument("--key", default=os.environ.get("MUSE2API_KEY", ""),
-                    help="API Key（m2a_ 开头）")
-    ap.add_argument("--label", default="", help="账号标签，如 acc-01")
+                    help="API Key (bắt đầu bằng m2a_)")
+    ap.add_argument("--label", default="", help="Nhãn tài khoản, ví dụ acc-01")
     ap.add_argument("--timeout", type=int, default=300,
-                    help="等待登录的最长秒数，默认 300 (Thời gian chờ tối đa)")
+                    help="Thời gian chờ đăng nhập tối đa (giây), mặc định 300")
     ap.add_argument("--keep-open", action="store_true",
-                    help="上传成功后不关闭浏览器窗口 (Giữ cửa sổ trình duyệt không đóng)")
+                    help="Giữ cửa sổ trình duyệt không đóng sau khi tải lên thành công")
     ap.add_argument("--port", type=int, default=CDP_PORT,
-                    help=f"调试端口，默认 {CDP_PORT} (Cổng debug)")
-    ap.add_argument("--chrome", default="", help="手动指定浏览器可执行文件路径 (Đường dẫn thủ công tới Chrome)")
+                    help=f"Cổng debug CDP, mặc định {CDP_PORT}")
+    ap.add_argument("--chrome", default="", help="Chỉ định thủ công đường dẫn tệp thực thi trình duyệt")
     args = ap.parse_args()
 
     say("=" * 66)
-    say("  muse2api Cookie 助手 (Cookie Importer Helper)")
+    say("  Công cụ hỗ trợ lấy Cookie muse2api (Cookie Importer Helper)")
     say("=" * 66)
     say()
 
     if not args.base or not args.key:
-        say("✗ 缺少参数。请这样运行：/ Thiếu tham số bắt buộc. Cú pháp chạy:")
+        say("✗ Thiếu tham số bắt buộc. Vui lòng chạy theo cú pháp:")
         say("    python get_muse_cookie.py --base https://your-server-ip:18610 --key m2a_xxx")
         say()
-        say("  （这两个值可以在 muse2api 管理页面的「接入信息」里复制 / Có thể sao chép tại trang Admin）")
+        say("  (Hai giá trị này có thể sao chép trong mục 'Thông tin kết nối' trên trang quản trị muse2api)")
         return 2
     if not args.label:
         args.label = "muse-" + time.strftime("%m%d-%H%M")
 
     chrome = args.chrome or find_chrome()
     if not chrome:
-        say("✗ 没找到 Chrome / Edge 浏览器。/ Không tìm thấy trình duyệt Chrome hoặc Edge.")
-        say("  请先安装 Chrome，或用 --chrome \"完整路径\" 手动指定。")
+        say("✗ Không tìm thấy trình duyệt Chrome hoặc Edge.")
+        say("  Vui lòng cài đặt Chrome trước, hoặc dùng --chrome \"đường_dẫn_đầy_đủ\" để chỉ định thủ công.")
         return 3
     say(f"Trình duyệt phát hiện: {chrome}")
 

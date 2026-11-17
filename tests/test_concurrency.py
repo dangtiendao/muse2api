@@ -73,7 +73,7 @@ def test_account_pool_manager():
     t0 = time.monotonic()
     try:
         pool.acquire(timeout=0.1)
-        raise AssertionError("应抛出超时")
+        raise AssertionError("Phải ném ra ngoại lệ quá thời gian chờ")
     except app.MuseGenerationError:
         pass
     assert time.monotonic() - t0 >= 0.08
@@ -140,9 +140,9 @@ def test_parallel_generation_simulation():
             t2.join()
 
             assert len(results) == 2
-            assert concurrency_observed, "两个任务应在独立的线程中同时并发执行！"
-            assert set(r[1] for r in results) == {"acc-1", "acc-2"}, "两个任务应分别调度在两个独立账号上！"
-            assert len(app.ACCOUNT_POOL.busy_accounts) == 0, "任务结束后所有账号应彻底归还！"
+            assert concurrency_observed, "Hai tác vụ phải được thực thi đồng thời trên các luồng độc lập!"
+            assert set(r[1] for r in results) == {"acc-1", "acc-2"}, "Hai tác vụ phải được điều phối trên hai tài khoản độc lập!"
+            assert len(app.ACCOUNT_POOL.busy_accounts) == 0, "Tất cả tài khoản phải được trả lại hoàn toàn sau khi kết thúc tác vụ!"
     finally:
         app.store.accounts = orig_accounts
     print("PASS: test_parallel_generation_simulation")

@@ -15,7 +15,7 @@
 - `manifest.json`: Khai báo thông tin tiện ích, các quyền bắt buộc (`cookies`, `storage`, `tabs`) và quyền truy cập host (`https://*.muse.ai/*`).
 - `popup.html`: Giao diện cửa sổ nhỏ hiện lên khi click biểu tượng extension trên thanh công cụ trình duyệt.
 - `popup.js`: Toàn bộ logic giao diện, đọc cookie bằng `chrome.cookies.getAll`, kiểm tra thiếu sót cookie cốt lõi (`hatch_sess`, `hatch_vml`) và gọi API `fetch()` đẩy sang server `/admin/accounts`.
-- `_locales/`: Bản dịch đa ngôn ngữ giao diện (i18n), hỗ trợ Tiếng Anh (`en`) và Tiếng Trung (`zh_CN`).
+- `_locales/`: Bản dịch đa ngôn ngữ giao diện (i18n), hỗ trợ Tiếng Việt (`vi` - mặc định), Tiếng Anh (`en`) và Tiếng Trung (`zh_CN`).
 
 ---
 

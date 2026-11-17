@@ -9,7 +9,7 @@
 | **CDP** | Chrome DevTools Protocol | Giao thức truyền thông hai chiều dựa trên JSON-RPC qua WebSocket, cho phép điều khiển trực tiếp trình duyệt Chromium từ bên ngoài. |
 | **Headless Browser** | Headless Chromium | Phiên bản trình duyệt chạy nền không cần hiển thị giao diện đồ họa (GUI), tối ưu hóa tài nguyên cho môi trường máy chủ. |
 | **Incognito Context** | BrowserContext (CDP) | Một phiên làm việc ẩn danh độc lập trong Chromium. Cookie, bộ nhớ đệm và session của mỗi context hoàn toàn cách ly với nhau. |
-| **SSE** | Server-Sent Events | Giao thức truyền dữ liệu một chiều từ máy chủ về máy khách qua kết nối HTTP duy nhất, dùng để tạo hiệu ứng gõ chữ (打字机 streaming) trong hội thoại AI. |
+| **SSE** | Server-Sent Events | Giao thức truyền dữ liệu một chiều từ máy chủ về máy khách qua kết nối HTTP duy nhất, dùng để tạo hiệu ứng gõ chữ (typewriter streaming) trong hội thoại AI. |
 | **TTFT** | Time To First Token | Thời gian tính từ khi client gửi yêu cầu cho tới khi nhận được token chữ đầu tiên. muse2api tối ưu chỉ còn 2-3s. |
 | **Warm-Tab Affinity** | Warm-Tab Sticky Affinity | Cơ chế ưu tiên tái sử dụng tab trình duyệt đã kết nối sẵn WebSocket với muse.ai thay vì mở tab mới mỗi lượt, giúp giảm độ trễ từ 10s xuống 2s. |
 | **Keepalive** | Heartbeat Keepalive | Quá trình gửi yêu cầu định kỳ lên máy chủ upstream để gia hạn cookie phiên và giữ cho máy ảo đám mây không bị rơi vào trạng thái ngủ đông. |

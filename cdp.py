@@ -77,7 +77,7 @@ class CDP:
                     if "error" in msg:
                         raise CDPError(f"{method}: {msg['error']}")
                     return msg
-            raise TimeoutError(f"CDP {method} 超时 (Timeout)")
+            raise TimeoutError(f"CDP {method} quá thời gian chờ (Timeout)")
 
     def js(self, expr: str, await_promise: bool = False, timeout: float | None = None):
         """Thực thi một biểu thức JavaScript trong context của trang hiện tại và trả về giá trị kết quả.

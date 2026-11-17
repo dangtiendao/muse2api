@@ -171,7 +171,7 @@ def check(home):
                              side_effect=socket.gaierror("fixture failure")):
             expect_error(lambda: engine._normalize_image(
                 "https://failed.example/ref"), module.MuseGenerationError,
-                "下载远程参考图失败")
+                "Tải ảnh tham chiếu từ xa thất bại")
     cfg.ref_image_private_fetch = False
     asyncio.run(check_endpoints(home, data_url))
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Mail.tm 临时邮箱：申请地址 + 轮询取验证码 (Mail.tm Disposable Email & OTP Poller).
+"""Hòm thư tạm thời Mail.tm: Đăng ký địa chỉ + Lắng nghe lấy mã xác thực OTP (Mail.tm Disposable Email & OTP Poller).
 
 Mục đích:
   Hỗ trợ quy trình tạo hoặc đăng nhập tài khoản muse.ai khi có yêu cầu nhập mã xác thực OTP qua email.
@@ -93,7 +93,7 @@ def poll(token, timeout):
         str | None: Mã OTP phát hiện được hoặc None nếu hết thời gian chờ mà không có thư.
     """
     seen, deadline = set(), time.time() + timeout
-    print(f"[*] 开始轮询收件箱（最多 {timeout}s，Ctrl-C 可停）\n[*] Đang lắng nghe hộp thư đến (tối đa {timeout}s, nhấn Ctrl-C để hủy)...\n")
+    print(f"[*] Đang lắng nghe hộp thư đến (tối đa {timeout}s, nhấn Ctrl-C để dừng)...\n")
     while time.time() < deadline:
         try:
             r = req("/messages?page=1", token=token)
@@ -108,17 +108,17 @@ def poll(token, timeout):
             frm = (full.get("from") or {}).get("address", "?")
             subj = full.get("subject", "")
             body = full.get("text") or full.get("intro") or ""
-            print(f"[+] 新邮件 / Thư mới từ {frm}\n    Chủ đề: {subj}")
+            print(f"[+] Thư mới từ {frm}\n    Chủ đề: {subj}")
             codes = CODE_RE.findall(f"{subj}\n{body}")
             print(f"    Nội dung: {body.strip()[:500]}")
             if codes:
-                print(f"\n>>> 验证码 (Mã OTP): {codes[0]}\n")
+                print(f"\n>>> Mã xác thực OTP: {codes[0]}\n")
                 return codes[0]
             print("    (Chưa tìm thấy mã OTP phù hợp, tiếp tục chờ...)\n")
         left = int(deadline - time.time())
         print(f"    Đang chờ thư mới... Còn lại {left}s", end="\r", flush=True)
         time.sleep(3)
-    print("\n[!] 超时，未收到验证码。/ Hết thời gian chờ, không nhận được mã xác thực.")
+    print("\n[!] Hết thời gian chờ, không nhận được mã xác thực.")
     return None
 
 

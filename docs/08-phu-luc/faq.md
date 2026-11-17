@@ -4,7 +4,7 @@
 
 ## 1. Vận Hành & Khởi Chạy
 
-### Q1: Tại sao Chromium báo lỗi "Chromium 启动失败" khi khởi chạy trên máy chủ Linux?
+### Q1: Tại sao Chromium báo lỗi "Khởi động Chromium thất bại" khi khởi chạy trên máy chủ Linux?
 **Trả lời**:
 1. Đảm bảo bạn đã cài đặt các gói thư viện đồ họa hệ thống và phông chữ:
    ```bash

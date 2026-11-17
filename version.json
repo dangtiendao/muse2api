@@ -3,14 +3,24 @@
   "updated_at": "2026-10-26",
   "repo": "https://github.com/czg86389-hub/muse2api",
   "highlights": [
-    "修复 Chrome 扩展和独立 Cookie 助手仍强制要求 hatch_gw 的问题；现在与服务端一致，只要求核心会话令牌。",
-    "修复视频遭 Muse 纯文字拒答时等待满 600 秒：稳定识别地区不可用等拒答并向调用方返回原文，长期无响应任务也会提前终止。",
-    "视频任务进度改为真实页面里程碑，不再用等待时间伪装成 92% 完成度。",
-    "合并 PR #32：图片生成、图片编辑与图生视频支持最多 4 张有序参考图。",
-    "多参考图增加字段冲突、无效项、MIME、单图 10 MiB 与总计 24 MiB 限制，并限定 composer 内附件计数。",
-    "参考图默认禁止服务器本地路径及私网/本机 URL；公网下载逐跳复查重定向并固定已验证 IP，可由可信管理员显式恢复旧能力。",
-    "修复同一账号连续查询额度时复用上次 Settings UI 导致的偶发失败；每次额度读取现在使用独立一次性页面，避免账号串页和菜单残留。",
-    "修复浏览器扩展下载包遗漏 _locales 子目录的问题，确保中英文扩展名称与说明随 ZIP 正确发布。"
+    "Sửa lỗi Chrome Extension và công cụ lấy Cookie độc lập vẫn bắt buộc yêu cầu hatch_gw; nay đã đồng bộ với máy chủ, chỉ yêu cầu các token phiên cốt lõi.",
+    "Sửa lỗi tác vụ video chờ đủ 600 giây khi bị Muse từ chối bằng văn bản thuần: nhận diện ổn định thông báo không hỗ trợ khu vực/quốc gia và trả về nguyên văn cho bên gọi, đồng thời dừng sớm các luồng gửi mới bị treo.",
+    "Tiến độ tác vụ video chuyển sang báo cáo theo cột mốc thực tế trên trang thay vì dùng thời gian chờ để giả lập 92%.",
+    "Hợp nhất PR #32: tạo ảnh, chỉnh sửa ảnh và tạo video từ ảnh hỗ trợ tối đa 4 ảnh tham chiếu có thứ tự.",
+    "Bổ sung kiểm tra xung đột trường, mục không hợp lệ, MIME, giới hạn 10 MiB mỗi ảnh và tổng cộng 24 MiB, đồng thời giới hạn đếm tệp đính kèm trong phạm vi khung soạn thảo.",
+    "Ảnh tham chiếu mặc định cấm đường dẫn cục bộ trên máy chủ và URL mạng nội bộ/loopback; tải xuống mạng công cộng kiểm tra lại từng bước chuyển hướng và ghim IP đã xác thực, quản trị viên tin cậy có thể bật lại tường minh khi cần.",
+    "Sửa lỗi thỉnh thoảng thất bại khi truy vấn hạn mức liên tiếp trên cùng tài khoản bằng cách sử dụng trang dùng một lần độc lập cho mỗi lượt đọc, tránh lưu cữu giao diện Settings và lẫn trang giữa các tài khoản.",
+    "Sửa lỗi gói tải xuống tiện ích trình duyệt bỏ sót thư mục con _locales, hỗ trợ đa ngôn ngữ Tiếng Việt / Tiếng Anh / Tiếng Trung."
+  ],
+  "highlights_vi": [
+    "Sửa lỗi Chrome Extension và công cụ lấy Cookie độc lập vẫn bắt buộc yêu cầu hatch_gw; nay đã đồng bộ với máy chủ, chỉ yêu cầu các token phiên cốt lõi.",
+    "Sửa lỗi tác vụ video chờ đủ 600 giây khi bị Muse từ chối bằng văn bản thuần: nhận diện ổn định thông báo không hỗ trợ khu vực/quốc gia và trả về nguyên văn cho bên gọi, đồng thời dừng sớm các luồng gửi mới bị treo.",
+    "Tiến độ tác vụ video chuyển sang báo cáo theo cột mốc thực tế trên trang thay vì dùng thời gian chờ để giả lập 92%.",
+    "Hợp nhất PR #32: tạo ảnh, chỉnh sửa ảnh và tạo video từ ảnh hỗ trợ tối đa 4 ảnh tham chiếu có thứ tự.",
+    "Bổ sung kiểm tra xung đột trường, mục không hợp lệ, MIME, giới hạn 10 MiB mỗi ảnh và tổng cộng 24 MiB, đồng thời giới hạn đếm tệp đính kèm trong phạm vi khung soạn thảo.",
+    "Ảnh tham chiếu mặc định cấm đường dẫn cục bộ trên máy chủ và URL mạng nội bộ/loopback; tải xuống mạng công cộng kiểm tra lại từng bước chuyển hướng và ghim IP đã xác thực, quản trị viên tin cậy có thể bật lại tường minh khi cần.",
+    "Sửa lỗi thỉnh thoảng thất bại khi truy vấn hạn mức liên tiếp trên cùng tài khoản bằng cách sử dụng trang dùng một lần độc lập cho mỗi lượt đọc, tránh lưu cữu giao diện Settings và lẫn trang giữa các tài khoản.",
+    "Sửa lỗi gói tải xuống tiện ích trình duyệt bỏ sót thư mục con _locales, hỗ trợ đa ngôn ngữ Tiếng Việt / Tiếng Anh / Tiếng Trung."
   ],
   "highlights_en": [
     "Fixed the Chrome extension and standalone cookie helper incorrectly requiring hatch_gw; import requirements now match the server.",
@@ -20,6 +30,16 @@
     "Added conflict, item, MIME, per-image 10 MiB and aggregate 24 MiB validation, plus composer-scoped attachment counting.",
     "Reference images now deny server-local paths and private/loopback URLs by default; public downloads recheck every redirect and pin the validated IP, with explicit trusted-admin opt-ins for legacy access.",
     "Fixed intermittent failures on consecutive quota reads by using a fresh disposable page for every read, preventing stale Settings UI and cross-account page reuse.",
-    "Fixed extension ZIP packaging so nested _locales resources are included and English/Chinese metadata ships correctly."
+    "Fixed extension ZIP packaging so nested _locales resources are included and Vietnamese/English/Chinese metadata ships correctly."
+  ],
+  "highlights_zh": [
+    "修复 Chrome 扩展和独立 Cookie 助手仍强制要求 hatch_gw 的问题；现在与服务端一致，只要求核心会话令牌。",
+    "修复视频遭 Muse 纯文字拒答时等待满 600 秒：稳定识别地区不可用等拒答并向调用方返回原文，长期无响应任务也会提前终止。",
+    "视频任务进度改为真实页面里程碑，不再用等待时间伪装成 92% 完成度。",
+    "合并 PR #32：图片生成、图片编辑与图生视频支持最多 4 张有序参考图。",
+    "多参考图增加字段冲突、无效项、MIME、单图 10 MiB 与总计 24 MiB 限制，并限定 composer 内附件计数。",
+    "参考图默认禁止服务器本地路径及私网/本机 URL；公网下载逐跳复查重定向并固定已验证 IP，可由可信管理员显式恢复旧能力。",
+    "修复同一账号连续查询额度时复用上次 Settings UI 导致的偶发失败；每次额度读取现在使用独立一次性页面，避免账号串页和菜单残留。",
+    "修复浏览器扩展下载包遗漏 _locales 子目录的问题，支持越南语/英语/中文多语言元数据。"
   ]
 }

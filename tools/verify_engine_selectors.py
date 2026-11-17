@@ -1,4 +1,4 @@
-"""直接用 engine.py 的现网 JS 片段打真页面，验证 / 修正选择器 (Verify & Debug Engine DOM Selectors).
+"""Kiểm tra trực tiếp các đoạn mã JS của engine.py trên trang thật để xác thực / hiệu chỉnh bộ chọn (Verify & Debug Engine DOM Selectors).
 
 Mục đích:
   Công cụ kiểm thử và xác thực thực tế các bộ chọn CSS/JS của `engine.py` trên giao diện trang web muse.ai.
@@ -45,7 +45,7 @@ def find_page_ws() -> tuple[str, str]:
     for p in pages:
         if p.get("type") == "page" and "muse.ai" in (p.get("url") or ""):
             return p.get("webSocketDebuggerUrl"), p.get("url")
-    raise SystemExit("没找到 muse.ai 页面 / Không tìm thấy tab muse.ai đang mở trên cổng CDP")
+    raise SystemExit("Không tìm thấy tab muse.ai đang mở trên cổng CDP")
 
 
 class FakeEngine:
@@ -86,7 +86,7 @@ def main():
                                     for k, v in a.items()}, ensure_ascii=False))
 
         # 2) Thử nghiệm inject ảnh mẫu 1x1 PNG vào input file và kiểm tra trạng thái xác nhận
-        print("\n=== 注入 1x1 PNG / Inject thử ảnh mẫu 1x1 PNG ===")
+        print("\n=== Inject thử ảnh mẫu 1x1 PNG ===")
         res = c.js(E.MuseEngine._attach_image.__doc__ and
                    "0" or "0")  # noop placeholder
         # Đoạn mã JavaScript tạo Blob từ Base64 và gán vào input[type=file] thông qua DataTransfer API
